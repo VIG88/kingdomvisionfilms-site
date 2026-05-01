@@ -1,0 +1,16 @@
+{
+  "name": "kingdom-vision-films",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && cp public/script.js dist/script.js && cp public/styles.css dist/styles.css",
+    "preview": "wrangler pages dev dist --ip 0.0.0.0 --port 3000",
+    "deploy": "npm run build && wrangler pages deploy dist",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+  },
+  "devDependencies": {
+    "playwright": "^1.59.1",
+    "vite": "^6.3.5",
+    "wrangler": "^4.4.0"
+  }
+}
