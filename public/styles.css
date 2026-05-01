@@ -399,18 +399,6 @@ body.intro-active { overflow: hidden; }
   pointer-events: auto;
 }
 
-.hero-eyebrow {
-  font-family: 'Montserrat', sans-serif;
-  font-size: 8px; font-weight: 200;
-  letter-spacing: 0.68em; text-transform: uppercase;
-  color: rgba(201,168,76,0.40);
-  margin-bottom: 22px;
-  opacity: 0; transform: translateY(10px);
-  transition: opacity 1.2s ease, transform 1.2s ease;
-  text-shadow: 0 0 24px rgba(0,0,0,0.95);
-}
-.hero-eyebrow.in { opacity: 1; transform: translateY(0); }
-
 #hero-headline {
   font-family: 'Cinzel', serif;
   font-size: clamp(22px, 4.6vw, 72px);
@@ -488,15 +476,6 @@ body.intro-active { overflow: hidden; }
   transition: opacity 1.0s ease, transform 1.0s ease;
 }
 .word.in { opacity: 1; transform: translateY(0); }
-
-.hero-rule {
-  width: 44px; height: 1px;
-  background: linear-gradient(to right, transparent, var(--gold-light), transparent);
-  margin: 20px auto 17px;
-  opacity: 0; transition: opacity 1.2s ease, width 1.8s ease;
-  box-shadow: 0 0 8px rgba(201,168,76,0.30);
-}
-.hero-rule.in { opacity: 0.70; width: 180px; }
 
 /* ── Cinematic tagline ─────────────────────────────────────────
    Single line, pinned to the bottom area of #hero-section.
@@ -873,7 +852,5 @@ body.intro-active { overflow: hidden; }
 }
 @media (max-height: 560px) {
   #hero-section { padding-top: 10vh; }
-  .hero-eyebrow { display: none; }
-  .hero-rule    { margin: 8px auto; }
   #scroll-cue   { display: none; }
 }

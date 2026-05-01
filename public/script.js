@@ -53,9 +53,7 @@
   var pCanvas      = $('particle-canvas');
   var smokes       = document.querySelectorAll('.smoke');
   var siteHeader   = $('site-header');
-  var eyebrow      = document.querySelector('.hero-eyebrow');
   var words        = document.querySelectorAll('.word');
-  var rule         = document.querySelector('.hero-rule');
   var scrollCue    = $('scroll-cue');
   var navToggle    = $('nav-toggle');
   var mainNav      = $('main-nav');
@@ -570,12 +568,10 @@
     });
     after(d + 700,  function () { grainCanvas.classList.add('visible'); });
     after(d + 800,  function () { siteHeader.classList.add('visible'); });
-    after(d + 1000, function () { eyebrow.classList.add('in'); });
     words.forEach(function (w, i) {
       after(d + 1200 + i * 210, function () { w.classList.add('in'); });
     });
     var textEnd = d + 1200 + words.length * 210;
-    after(textEnd + 180, function () { rule.classList.add('in'); });
     after(textEnd + 520, function () { if (heroTagline) heroTagline.classList.add('in'); });
     after(textEnd + 860, function () { scrollCue.classList.add('in'); });
   }
