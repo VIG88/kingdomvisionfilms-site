@@ -368,32 +368,87 @@
 
   /* ══════════════════════════════════════════════════════════════
      STEP 3 — INTRO VIDEO
-     Hard 3-second stall timer fires skipIntro() so the homepage
-     is NEVER left on an infinite loading/black screen.
+     Smooth-playback strategy:
+       • Poster image shows immediately (no black screen while loading)
+       • Wait for canplaythrough before revealing + playing — guarantees
+         enough data is buffered for stutter-free playback
+       • canplay fallback: if canplaythrough never fires within 1 s of
+         canplay firing, start anyway (fast connections won't wait long)
+       • Rebuffering watchdog: if 'waiting' fires mid-playback, pause,
+         wait for canplaythrough again, then resume — eliminates jumps
+       • Hard 3 s global timeout: if nothing loads at all, skipIntro()
+       • All paths lead to homepage — no infinite black screen possible
   ══════════════════════════════════════════════════════════════ */
+
+  var introCPTfired = false;   /* canplaythrough received           */
+  var introStarted  = false;   /* play() has been called once       */
+  var reBuffering   = false;   /* mid-play rebuffer in progress     */
+  var cptFallback   = null;    /* timer: canplay → canplaythrough   */
+
+  /* ── Attempt to play (always muted for autoplay compat) ─────── */
   function tryPlayIntro() {
+    if (transitionStarted) return;
+    introStarted = true;
+    introLoader.classList.add('hidden');
+    introVideo.classList.add('playing');
     var p = introVideo.play();
     if (p && typeof p.then === 'function') {
       p.then(function () { videoStarted = true; })
-       .catch(function () { skipIntro(); });
+       .catch(function () {
+         /* Autoplay blocked — wait for first touch to retry */
+         introVideo.classList.remove('playing');
+       });
     } else {
       videoStarted = true;
     }
   }
 
-  introVideo.addEventListener('canplay', function onCanPlay() {
-    introVideo.removeEventListener('canplay', onCanPlay);
+  /* ── canplaythrough: enough buffered to play without stalling ── */
+  introVideo.addEventListener('canplaythrough', function onCPT() {
+    introVideo.removeEventListener('canplaythrough', onCPT);
+    introCPTfired = true;
+    clearTimeout(cptFallback);
     clearTimeout(stallTimer);
-    introLoader.classList.add('hidden');
-    introVideo.classList.add('playing');
-    tryPlayIntro();
-    setTimeout(showSoundToggle, 800);
+
+    if (reBuffering) {
+      /* Mid-play rebuffer resolved — resume silently */
+      reBuffering = false;
+      introVideo.play().catch(function () {});
+      return;
+    }
+
+    if (!introStarted) {
+      introLoader.classList.add('hidden');
+      tryPlayIntro();
+      setTimeout(showSoundToggle, 800);
+    }
   });
 
+  /* ── canplay: first decodable frame ready ───────────────────── */
+  introVideo.addEventListener('canplay', function onCP() {
+    introVideo.removeEventListener('canplay', onCP);
+    clearTimeout(stallTimer);
+    introLoader.classList.add('hidden');
+
+    if (!introCPTfired) {
+      /* Give canplaythrough up to 1 s to arrive on fast connections;
+         if it doesn't fire by then, start playing anyway */
+      cptFallback = setTimeout(function () {
+        if (!introCPTfired && !introStarted && !transitionStarted) {
+          introCPTfired = true;   /* treat as buffered-enough */
+          tryPlayIntro();
+          setTimeout(showSoundToggle, 800);
+        }
+      }, 1000);
+    }
+  });
+
+  /* ── loadeddata: first frame decoded — hide spinner early ───── */
   introVideo.addEventListener('loadeddata', function () {
     introLoader.classList.add('hidden');
   });
 
+  /* ── timeupdate: normal playback progress ───────────────────── */
   introVideo.addEventListener('timeupdate', function () {
     if (transitionStarted) return;
     videoStarted = true;
@@ -403,10 +458,12 @@
     }
   });
 
+  /* ── ended: video finished before reaching INTRO_FADE_SEC ───── */
   introVideo.addEventListener('ended', function () {
     if (!transitionStarted) beginCrossfade();
   }, { once: true });
 
+  /* ── error / source error ────────────────────────────────────── */
   introVideo.addEventListener('error', function () {
     skipIntro();
   }, { once: true });
@@ -419,14 +476,25 @@
     }, { once: true });
   }
 
-  introVideo.addEventListener('waiting', function () { resetStallTimer(); });
+  /* ── waiting: mid-play rebuffer (stutter prevention) ────────── */
+  introVideo.addEventListener('waiting', function () {
+    if (!transitionStarted && introStarted) {
+      reBuffering = true;
+      /* Pause cleanly — canplaythrough listener above will resume */
+      introVideo.pause();
+      /* Safety: if canplaythrough never re-fires, arm stall timer */
+      resetStallTimer();
+    }
+  });
+
+  /* ── playing: rebuffer or initial play resolved ─────────────── */
   introVideo.addEventListener('playing', function () {
+    reBuffering = false;
     videoStarted = true;
     clearTimeout(stallTimer);
   });
 
-  /* Hard 3-second timeout — if canplay never fires or video stalls,
-     immediately skip to homepage so the site always loads. */
+  /* ── Hard 3-second global timeout ───────────────────────────── */
   function resetStallTimer() {
     clearTimeout(stallTimer);
     stallTimer = setTimeout(function () {
@@ -435,25 +503,30 @@
   }
   resetStallTimer();  /* arm immediately on page load */
 
+  /* ── First-touch wake for mobile autoplay blocks ─────────────── */
   document.addEventListener('touchstart', function wakeVideo() {
-    if (!transitionStarted && introVideo.paused) tryPlayIntro();
     document.removeEventListener('touchstart', wakeVideo);
+    if (transitionStarted) return;
+    if (introVideo.paused && introStarted) {
+      introVideo.play().catch(function () {});
+    } else if (!introStarted && introCPTfired) {
+      tryPlayIntro();
+    }
   }, { passive: true });
 
+  /* ── Tab visibility ──────────────────────────────────────────── */
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
       introVideo.pause();
       if (transitionStarted) {
-        /* Pause both bg videos to save resources when tab hidden */
         bgVideoA.pause();
         bgVideoB.pause();
         stopLoopEngine();
       }
     } else {
       if (!transitionStarted) {
-        tryPlayIntro();
+        if (introStarted) introVideo.play().catch(function () {});
       } else {
-        /* Resume both bg videos (skip if fallback is active) */
         if (!bgFallbackApplied) {
           bgVideoA.play().catch(function () {});
           bgVideoB.play().catch(function () {});
