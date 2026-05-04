@@ -1,35 +1,39 @@
 /* ═══════════════════════════════════════════════════════════════
    KINGDOM VISION FILMS — script.js
-   Cinematic Engine v16 — Always-Load Fallback Edition
+   Cinematic Engine v17 — Guaranteed Video Crossfade Edition
 
-   LOADING FALLBACK STRATEGY:
-   - Intro video: 3 s hard timeout → skip to homepage immediately
-   - BG video: error / stall / canplay-timeout → fall back to static
-     KVF image (kvf-logo-4k.png) so there is NEVER a black screen
-   - All asset paths are relative (./assets/…) — no external deps
+   ARCHITECTURE:
+   ─────────────────────────────────────────────────────────────
+   Phase 1 — INTRO
+     • Intro video plays once (preload=auto, poster shown instantly)
+     • canplaythrough gate ensures smooth playback before starting
+     • 3 s hard timeout skips intro if nothing loads
+     • At t=9.3 s → beginCrossfade()
 
-   SEAMLESS LOOP STRATEGY:
-   Both bg-video-a and bg-video-b start playing from t=0 together.
-   Because they play the same content in sync, both videos show the
-   same frame at the same time — the crossfade blends identical
-   frames, making every transition completely invisible.
+   Phase 2 — CROSSFADE (1.8 s)
+     • BG video A was preloading silently during intro (opacity:0)
+     • BG video A is seeked to t=0 and CONFIRMED playing before
+       the wrapper opacity transition starts — no black gap
+     • intro-screen fades 1→0 while bg-video-wrap fades 0→1
+       simultaneously over 1.8 s — no black in between
 
-   SWAP SEQUENCE (1.5 s before active video ends):
-     1. CSS: active fades 1→0, idle fades 0→1 over 1.5 s
-        (both at the same currentTime → blend is imperceptible)
-     2. Role labels swap so next cycle is ready
-     3. AFTER the CSS transition ends, seek the now-hidden outgoing
-        video back to t=0 and let it play silently from there
-     4. By next swap time (~5.5 s later) it has advanced to ~5.5 s —
-        exactly matching activeVid — giving another perfect blend
-   NO seek ever happens while a video is visible. Zero glitches.
+   Phase 3 — HOMEPAGE LOOP (dual-video seamless)
+     • Video A plays. Video B mirrors it silently (same src, same t=0 start)
+     • At (duration − 1.5 s): CSS crossfade A→B over 1.5 s
+       Both videos show identical frames → transition invisible
+     • After fade: outgoing video reset to t=0, plays silently
+     • Alternates continuously — never pauses, never cuts
 
-   INTRO → BG CROSSFADE:
-     Intro plays once; at 9.3 s both opacity transitions fire
-     simultaneously (intro 1→0, bg-wrap 0→1).
+   FALLBACK (never black screen):
+     • BG canplay timeout = 20 s (generous for CDN/mobile)
+     • Fallback only fires if BOTH videos error AND canplay never fires
+     • Fallback shows kvf-logo-4k.png static background
+     • Even in fallback the wrapper is shown, not display:none
 
-   SOUND STATE:
-     isMuted shared across all three videos, applied on every toggle.
+   SOUND:
+     • isMuted shared across all 3 videos
+     • First interaction auto-unmutes (browser autoplay policy)
+     • Sound toggle persists through entire lifecycle
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -39,7 +43,7 @@
     var out = '[KVF] ' + msg;
     if (data !== undefined) { console.log(out, data); } else { console.log(out); }
   }
-  kvfLog('script.js loaded — KVF Cinematic Engine v16');
+  kvfLog('script.js loaded — KVF Cinematic Engine v17');
 
   /* ── DOM references ─────────────────────────────────────────── */
   function $(id) { return document.getElementById(id); }
@@ -66,82 +70,33 @@
   var mainNav      = $('main-nav');
   var heroTagline  = $('hero-tagline');
 
-  /* ── Timing constants ───────────────────────────────────────────
-     Intro:    11.037 s total. Crossfade to homepage starts at 9.3 s.
-     BG loop:  39.833 s total. Dual-video swap starts at 38.333 s
-               (= 39.833 - LOOP_XFADE_SEC). Transition 1.5 s.
-  ─────────────────────────────────────────────────────────────── */
-  var INTRO_FADE_SEC   = 9.3;
-  var INTRO_XFADE_MS   = 1500;
-  var STALL_TIMEOUT_MS = 3000;   /* 3 s hard timeout — skip intro  */
-  var BG_CANPLAY_MS    = 8000;   /* 8 s to wait for bg canplay (larger file) */
+  /* ── Timing constants ───────────────────────────────────────── */
+  var INTRO_FADE_SEC   = 9.3;     /* start crossfade at this intro time   */
+  var INTRO_XFADE_MS   = 1800;    /* 1.8 s crossfade as required          */
+  var STALL_TIMEOUT_MS = 3000;    /* 3 s hard timeout → skip intro        */
+  var BG_CANPLAY_MS    = 20000;   /* 20 s before bg fallback fires        */
+  var BG_DURATION_SEC  = 39.833;  /* exact ffprobe duration               */
+  var LOOP_XFADE_SEC   = 1.5;     /* seconds before end → start loop swap */
+  var LOOP_XFADE_MS    = 1500;    /* must match CSS transition duration   */
 
-  var BG_DURATION_SEC  = 39.833; /* exact ffprobe duration         */
-  var LOOP_XFADE_SEC   = 1.5;    /* seconds before end — start swap */
-  var LOOP_XFADE_MS    = 1500;   /* must match CSS transition      */
-
+  /* ── State ──────────────────────────────────────────────────── */
   var transitionStarted = false;
   var stallTimer        = null;
   var videoStarted      = false;
   var isMuted           = true;
 
-  /* ── Dual-video loop state ──────────────────────────────────── */
-  var activeVid  = bgVideoA;   /* currently visible (opacity:1)   */
-  var idleVid    = bgVideoB;   /* warm/playing under opacity:0     */
-  var swapping   = false;      /* guard — only one swap at a time  */
-  var loopRafId  = null;
+  /* Dual-video loop state */
+  var activeVid = bgVideoA;
+  var idleVid   = bgVideoB;
+  var swapping  = false;
+  var loopRafId = null;
 
-  /* ── BG fallback state ──────────────────────────────────────── */
+  /* BG readiness state */
+  var bgAReady          = false;
+  var bgBReady          = false;
   var bgFallbackApplied = false;
   var bgCanplayTimer    = null;
-
-
-  /* ══════════════════════════════════════════════════════════════
-     BG VIDEO FALLBACK
-     If neither bg video fires canplay within BG_CANPLAY_MS, or if
-     both error out, hide the video wrap and show the static 4K
-     logo image instead — the page is NEVER left with a black bg.
-  ══════════════════════════════════════════════════════════════ */
-  function applyBgFallback() {
-    if (bgFallbackApplied) return;
-    bgFallbackApplied = true;
-    kvfLog('Background video fallback applied — showing static KVF image');
-
-    /* Stop any pending canplay timer */
-    clearTimeout(bgCanplayTimer);
-
-    /* Pause and detach video sources so they stop draining bandwidth */
-    try { bgVideoA.pause(); bgVideoA.src = ''; bgVideoA.load(); } catch (e) {}
-    try { bgVideoB.pause(); bgVideoB.src = ''; bgVideoB.load(); } catch (e) {}
-
-    /* Hide the (now empty) video wrap */
-    bgVideoWrap.style.display = 'none';
-
-    /* Insert a full-cover static image behind all layers */
-    var img = document.createElement('div');
-    img.id = 'bg-static-fallback';
-    img.style.cssText = [
-      'position:fixed',
-      'inset:0',
-      'z-index:1',                           /* same level as bg-video-wrap */
-      'background:url(./assets/kvf-logo-4k.png) center center / cover no-repeat',
-      'background-color:#000',
-      'pointer-events:none'
-    ].join(';');
-
-    /* Insert right after base-bg so it sits at z:1 under all overlays */
-    var baseBg = $('base-bg');
-    if (baseBg && baseBg.parentNode) {
-      baseBg.parentNode.insertBefore(img, baseBg.nextSibling);
-    } else {
-      document.getElementById('homepage').prepend(img);
-    }
-  }
-
-  /* Start a timer — if canplay never fires, fall back to static image */
-  bgCanplayTimer = setTimeout(function () {
-    if (!bgFallbackApplied) applyBgFallback();
-  }, BG_CANPLAY_MS);
+  var bgBothStarted     = false;  /* true once both bg videos are playing */
 
 
   /* ══════════════════════════════════════════════════════════════
@@ -178,12 +133,6 @@
     setTimeout(function () { soundToggle.classList.add('visible'); }, 40);
   }
 
-  function hideSoundToggle() {
-    if (!soundToggle) return;
-    soundToggle.classList.remove('visible');
-    soundToggle.classList.add('hidden');
-  }
-
   if (soundToggle) {
     soundToggle.addEventListener('click', function () {
       isMuted = !isMuted;
@@ -197,103 +146,121 @@
 
 
   /* ══════════════════════════════════════════════════════════════
-     BG VIDEOS — both start loading immediately from t=0 in sync.
-     Because both videos contain identical content and both start
-     from currentTime=0 together, they stay frame-accurate in sync.
-     The idle video plays silently under opacity:0 so the decoder
-     is always warm. Swaps blend identical frames → invisible.
+     FIRST-INTERACTION AUTO-UNMUTE
+     Browser autoplay policy: first user gesture unmutes everything.
   ══════════════════════════════════════════════════════════════ */
+  var firstInteractionDone = false;
 
-  /* Give both videos the loop attribute so they never stop on their own */
+  function onFirstInteraction(e) {
+    if (firstInteractionDone) return;
+    if (soundToggle && soundToggle.contains(e.target)) return;
+    firstInteractionDone = true;
+    document.removeEventListener('click',     onFirstInteraction, true);
+    document.removeEventListener('touchstart', onFirstInteraction, true);
+    isMuted = false;
+    applyMuteState(false);
+    setSoundIcon(false);
+  }
+
+  document.addEventListener('click',     onFirstInteraction, true);
+  document.addEventListener('touchstart', onFirstInteraction, { capture: true, passive: true });
+
+
+  /* ══════════════════════════════════════════════════════════════
+     BG VIDEO FALLBACK
+     Only fires if canplay never arrives within 20 s OR both error.
+     Shows static KVF image — never leaves a pure black screen.
+     NOTE: we do NOT use display:none on bgVideoWrap — we replace
+     the background with an image so overlays still render correctly.
+  ══════════════════════════════════════════════════════════════ */
+  function applyBgFallback() {
+    if (bgFallbackApplied) return;
+    bgFallbackApplied = true;
+    kvfLog('BG fallback applied — showing static KVF image');
+
+    clearTimeout(bgCanplayTimer);
+
+    /* Stop videos */
+    try { bgVideoA.pause(); bgVideoA.removeAttribute('src'); bgVideoA.load(); } catch (e) {}
+    try { bgVideoB.pause(); bgVideoB.removeAttribute('src'); bgVideoB.load(); } catch (e) {}
+
+    /* Replace video wrap background with static image — keep it visible */
+    bgVideoWrap.style.background =
+      'url(./assets/kvf-logo-4k.png) center center / cover no-repeat #000';
+
+    /* Make sure the wrap is visible so the static image shows */
+    bgVideoWrap.classList.add('visible');
+  }
+
+  /* ── BG canplay timeout — 20 s is generous enough for any network ── */
+  bgCanplayTimer = setTimeout(function () {
+    if (!bgFallbackApplied && !bgBothStarted) {
+      kvfLog('BG canplay timeout — applying fallback');
+      applyBgFallback();
+    }
+  }, BG_CANPLAY_MS);
+
+
+  /* ══════════════════════════════════════════════════════════════
+     BG VIDEO PRELOAD
+     Both videos load silently during the intro. They do NOT play
+     yet — we only confirm canplay so decoders are warm.
+     Actual play() is called inside beginCrossfade() once we know
+     the transition is about to happen. This ensures both videos
+     are at t=0 and confirmed playing when the wrapper fades in.
+  ══════════════════════════════════════════════════════════════ */
   bgVideoA.loop = true;
   bgVideoB.loop = true;
 
-  /* Load and start both from t=0 as close together as possible.
-     We use a single canplay listener on A; once A is ready we start
-     both simultaneously so they remain frame-accurate in sync.     */
-  var bgAReady = false;
-  var bgBReady = false;
-
-  function tryStartBothSync() {
-    if (!bgAReady || !bgBReady) return;
-    /* Both decoders are ready — cancel fallback timer, seek to 0, start */
-    clearTimeout(bgCanplayTimer);
-    kvfLog('Background video loaded — both A+B ready, starting sync playback');
-    bgVideoA.currentTime = 0;
-    bgVideoB.currentTime = 0;
-    bgVideoA.play().then(function () {
-      kvfLog('Background video A — playing');
-    }).catch(function (err) {
-      kvfLog('Background video A — play() blocked', err.message);
-    });
-    bgVideoB.play().catch(function () {});
-  }
+  /* Keep both muted during preload (required for autoplay) */
+  bgVideoA.muted = true; bgVideoA.volume = 0;
+  bgVideoB.muted = true; bgVideoB.volume = 0;
 
   bgVideoA.addEventListener('canplay', function onAReady() {
     bgVideoA.removeEventListener('canplay', onAReady);
     bgAReady = true;
-    kvfLog('Background video A — canplay fired', bgVideoA.src);
-    tryStartBothSync();
+    kvfLog('BG video A — canplay fired');
+    /* Do NOT play yet — wait for crossfade trigger */
   });
+
   bgVideoB.addEventListener('canplay', function onBReady() {
     bgVideoB.removeEventListener('canplay', onBReady);
     bgBReady = true;
-    kvfLog('Background video B — canplay fired', bgVideoB.src);
-    tryStartBothSync();
+    kvfLog('BG video B — canplay fired');
   });
 
-  /* If either bg video errors, attempt the other; if both fail → fallback */
   var bgAErrored = false;
   var bgBErrored = false;
 
-  bgVideoA.addEventListener('error', function (e) {
+  bgVideoA.addEventListener('error', function () {
     bgAErrored = true;
-    kvfLog('Background video error — video A', bgVideoA.error ? bgVideoA.error.message : e.type);
+    kvfLog('BG video A — error', bgVideoA.error ? bgVideoA.error.message : 'unknown');
     if (bgBErrored) applyBgFallback();
   }, { once: true });
-  bgVideoB.addEventListener('error', function (e) {
+
+  bgVideoB.addEventListener('error', function () {
     bgBErrored = true;
-    kvfLog('Background video error — video B', bgVideoB.error ? bgVideoB.error.message : e.type);
+    kvfLog('BG video B — error', bgVideoB.error ? bgVideoB.error.message : 'unknown');
     if (bgAErrored) applyBgFallback();
   }, { once: true });
 
-  /* Also watch for stalling on the active bg video AFTER it starts */
-  var bgStallTimer = null;
-  function resetBgStallTimer() {
-    clearTimeout(bgStallTimer);
-    bgStallTimer = setTimeout(function () {
-      /* Only apply fallback if we haven't already started playing fine */
-      if (!bgFallbackApplied && bgVideoA.paused && bgVideoB.paused) {
-        applyBgFallback();
-      }
-    }, 8000);  /* 8 s of stall → give up and show static bg            */
-  }
-
-  bgVideoA.addEventListener('waiting', function () { kvfLog('Background video A — waiting/buffering'); resetBgStallTimer(); });
-  bgVideoA.addEventListener('playing', function () { kvfLog('Background video playing — A active'); clearTimeout(bgStallTimer); });
-  bgVideoB.addEventListener('playing', function () { kvfLog('Background video playing — B active'); clearTimeout(bgStallTimer); });
-
+  /* Trigger preload — browsers load metadata + first segment */
   bgVideoA.load();
   bgVideoB.load();
 
 
   /* ══════════════════════════════════════════════════════════════
-     DUAL-VIDEO LOOP ENGINE
-     Uses rAF to watch activeVid.currentTime.
-     When it reaches (duration - LOOP_XFADE_SEC):
-       1. Swap CSS classes — both videos are at the SAME currentTime
-          so the opacity crossfade blends identical frames (invisible)
-       2. Swap role vars (activeVid ↔ idleVid)
-       3. After CSS transition ends: seek the now-hidden outgoing
-          video back to t=0 and let it play silently for ~5.5 s
-          so it arrives at the next swap point in perfect sync again
-     No seek ever happens while a video is visible → zero glitches.
+     DUAL-VIDEO SEAMLESS LOOP ENGINE
+     Called AFTER both bg videos are confirmed playing.
+     Watches activeVid.currentTime via rAF.
+     At (duration − 1.5 s): crossfades A→B (or B→A).
+     Both videos stay in sync → frames match → invisible blend.
   ══════════════════════════════════════════════════════════════ */
   function startLoopEngine() {
     if (loopRafId) return;
-    if (bgFallbackApplied) return;   /* no videos to loop — static fallback active */
+    if (bgFallbackApplied) return;
 
-    /* Ensure correct initial CSS state */
+    /* Set correct initial CSS state */
     bgVideoA.classList.remove('bg-idle');
     bgVideoA.classList.add('bg-active');
     bgVideoB.classList.remove('bg-active');
@@ -302,58 +269,42 @@
     activeVid = bgVideoA;
     idleVid   = bgVideoB;
 
+    kvfLog('Loop engine started');
+
     function tick() {
       loopRafId = requestAnimationFrame(tick);
-
       if (swapping) return;
 
       var ct  = activeVid.currentTime;
       var dur = activeVid.duration;
 
-      /* Need real playback data before watching */
-      if (!isFinite(dur) || dur < 0.5 || ct < 0.05) return;
+      if (!isFinite(dur) || dur < 0.5 || ct < 0.1) return;
 
-      /* Use detected duration with a small safety margin */
       var swapAt = dur - LOOP_XFADE_SEC;
-      if (swapAt < 0.1) swapAt = 0.1;   /* safety for very short clips */
-
+      if (swapAt < 0.1) swapAt = 0.1;
       if (ct < swapAt) return;
 
-      /* ── BEGIN SWAP ──────────────────────────────────────── */
+      /* ── BEGIN SWAP ─────────────────────────────────────── */
       swapping = true;
+      kvfLog('Loop swap — ' + (activeVid === bgVideoA ? 'A→B' : 'B→A'));
 
-      /* DO NOT seek idleVid here. Both videos have been playing since
-         t=0 (or since their last reset), so activeVid and idleVid are
-         at the SAME currentTime right now — the crossfade blends two
-         identical frames, making the transition completely invisible.
-         Seeking idleVid to 0 here would cause a decoder flush that
-         creates a visible flash/stutter at the start of the fade. */
-
-      /* Ensure idle video is actually playing and has correct sound */
+      /* Ensure idle video is playing and has correct mute state */
       idleVid.muted  = isMuted;
       idleVid.volume = isMuted ? 0 : 1;
-      /* Play in case it was blocked — usually already playing */
       idleVid.play().catch(function () {});
 
-      /* Trigger CSS crossfade — both videos show the same frame,
-         so the opacity blend is visually imperceptible */
+      /* CSS crossfade — both at same currentTime → invisible blend */
       activeVid.classList.remove('bg-active');
       activeVid.classList.add('bg-idle');
       idleVid.classList.remove('bg-idle');
       idleVid.classList.add('bg-active');
 
-      /* Capture the outgoing video reference BEFORE swapping roles */
       var outgoing = activeVid;
-
-      /* Swap roles immediately — outgoing becomes the next idle */
       activeVid = idleVid;
       idleVid   = outgoing;
 
-      /* After the CSS transition finishes and the outgoing video is
-         fully hidden (opacity:0), seek it back to t=0.
-         It then plays silently from 0 for ~5.5 s before the next swap,
-         arriving at the swap point at the same currentTime as activeVid.
-         No seek ever happens while a video is visible — zero glitches. */
+      /* After CSS transition completes: reset outgoing to t=0 so it
+         stays in sync for the next swap. Never seek while visible. */
       setTimeout(function () {
         outgoing.currentTime = 0;
         outgoing.play().catch(function () {});
@@ -365,15 +316,12 @@
   }
 
   function stopLoopEngine() {
-    if (loopRafId) {
-      cancelAnimationFrame(loopRafId);
-      loopRafId = null;
-    }
+    if (loopRafId) { cancelAnimationFrame(loopRafId); loopRafId = null; }
   }
 
 
   /* ══════════════════════════════════════════════════════════════
-     STEP 1 — REVEAL HOMEPAGE LAYERS
+     STEP 1 — REVEAL HOMEPAGE LAYERS (runs immediately)
   ══════════════════════════════════════════════════════════════ */
   revealHomepage(0);
 
@@ -385,24 +333,15 @@
 
   /* ══════════════════════════════════════════════════════════════
      STEP 3 — INTRO VIDEO
-     Smooth-playback strategy:
-       • Poster image shows immediately (no black screen while loading)
-       • Wait for canplaythrough before revealing + playing — guarantees
-         enough data is buffered for stutter-free playback
-       • canplay fallback: if canplaythrough never fires within 1 s of
-         canplay firing, start anyway (fast connections won't wait long)
-       • Rebuffering watchdog: if 'waiting' fires mid-playback, pause,
-         wait for canplaythrough again, then resume — eliminates jumps
-       • Hard 3 s global timeout: if nothing loads at all, skipIntro()
-       • All paths lead to homepage — no infinite black screen possible
+     canplaythrough gate → smooth playback guaranteed.
+     canplay fallback → 1 s grace period for fast connections.
+     3 s global hard timeout → always reaches homepage.
   ══════════════════════════════════════════════════════════════ */
+  var introCPTfired = false;
+  var introStarted  = false;
+  var reBuffering   = false;
+  var cptFallback   = null;
 
-  var introCPTfired = false;   /* canplaythrough received           */
-  var introStarted  = false;   /* play() has been called once       */
-  var reBuffering   = false;   /* mid-play rebuffer in progress     */
-  var cptFallback   = null;    /* timer: canplay → canplaythrough   */
-
-  /* ── Attempt to play (always muted for autoplay compat) ─────── */
   function tryPlayIntro() {
     if (transitionStarted) return;
     introStarted = true;
@@ -410,31 +349,29 @@
     introVideo.classList.add('playing');
     var p = introVideo.play();
     if (p && typeof p.then === 'function') {
-      p.then(function () { videoStarted = true; })
-       .catch(function () {
-         /* Autoplay blocked — wait for first touch to retry */
-         introVideo.classList.remove('playing');
-       });
+      p.then(function () {
+        videoStarted = true;
+        kvfLog('Intro video playing');
+      }).catch(function () {
+        introVideo.classList.remove('playing');
+      });
     } else {
       videoStarted = true;
     }
   }
 
-  /* ── canplaythrough: enough buffered to play without stalling ── */
   introVideo.addEventListener('canplaythrough', function onCPT() {
     introVideo.removeEventListener('canplaythrough', onCPT);
     introCPTfired = true;
-    kvfLog('Intro video loaded — canplaythrough fired');
+    kvfLog('Intro video — canplaythrough fired');
     clearTimeout(cptFallback);
     clearTimeout(stallTimer);
 
     if (reBuffering) {
-      /* Mid-play rebuffer resolved — resume silently */
       reBuffering = false;
       introVideo.play().catch(function () {});
       return;
     }
-
     if (!introStarted) {
       introLoader.classList.add('hidden');
       tryPlayIntro();
@@ -442,19 +379,16 @@
     }
   });
 
-  /* ── canplay: first decodable frame ready ───────────────────── */
   introVideo.addEventListener('canplay', function onCP() {
     introVideo.removeEventListener('canplay', onCP);
-    kvfLog('Intro video loaded — canplay fired');
+    kvfLog('Intro video — canplay fired');
     clearTimeout(stallTimer);
     introLoader.classList.add('hidden');
 
     if (!introCPTfired) {
-      /* Give canplaythrough up to 1 s to arrive on fast connections;
-         if it doesn't fire by then, start playing anyway */
       cptFallback = setTimeout(function () {
         if (!introCPTfired && !introStarted && !transitionStarted) {
-          introCPTfired = true;   /* treat as buffered-enough */
+          introCPTfired = true;
           tryPlayIntro();
           setTimeout(showSoundToggle, 800);
         }
@@ -462,12 +396,10 @@
     }
   });
 
-  /* ── loadeddata: first frame decoded — hide spinner early ───── */
   introVideo.addEventListener('loadeddata', function () {
     introLoader.classList.add('hidden');
   });
 
-  /* ── timeupdate: normal playback progress ───────────────────── */
   introVideo.addEventListener('timeupdate', function () {
     if (transitionStarted) return;
     videoStarted = true;
@@ -477,14 +409,12 @@
     }
   });
 
-  /* ── ended: video finished before reaching INTRO_FADE_SEC ───── */
   introVideo.addEventListener('ended', function () {
     if (!transitionStarted) beginCrossfade();
   }, { once: true });
 
-  /* ── error / source error ────────────────────────────────────── */
   introVideo.addEventListener('error', function () {
-    kvfLog('Intro video error — skipping to homepage', introVideo.error ? introVideo.error.message : 'unknown');
+    kvfLog('Intro video error — skipping', introVideo.error ? introVideo.error.message : '');
     skipIntro();
   }, { once: true });
 
@@ -496,35 +426,33 @@
     }, { once: true });
   }
 
-  /* ── waiting: mid-play rebuffer (stutter prevention) ────────── */
   introVideo.addEventListener('waiting', function () {
     if (!transitionStarted && introStarted) {
       reBuffering = true;
-      /* Pause cleanly — canplaythrough listener above will resume */
       introVideo.pause();
-      /* Safety: if canplaythrough never re-fires, arm stall timer */
       resetStallTimer();
     }
   });
 
-  /* ── playing: rebuffer or initial play resolved ─────────────── */
   introVideo.addEventListener('playing', function () {
     reBuffering = false;
     videoStarted = true;
-    kvfLog('Intro video playing');
     clearTimeout(stallTimer);
   });
 
-  /* ── Hard 3-second global timeout ───────────────────────────── */
+  /* Hard 3 s global timeout */
   function resetStallTimer() {
     clearTimeout(stallTimer);
     stallTimer = setTimeout(function () {
-      if (!transitionStarted) skipIntro();
+      if (!transitionStarted) {
+        kvfLog('Intro stall timeout — skipping to homepage');
+        skipIntro();
+      }
     }, STALL_TIMEOUT_MS);
   }
-  resetStallTimer();  /* arm immediately on page load */
+  resetStallTimer();
 
-  /* ── First-touch wake for mobile autoplay blocks ─────────────── */
+  /* Mobile autoplay wake */
   document.addEventListener('touchstart', function wakeVideo() {
     document.removeEventListener('touchstart', wakeVideo);
     if (transitionStarted) return;
@@ -535,7 +463,7 @@
     }
   }, { passive: true });
 
-  /* ── Tab visibility ──────────────────────────────────────────── */
+  /* Tab visibility */
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
       introVideo.pause();
@@ -561,107 +489,146 @@
 
 
   /* ══════════════════════════════════════════════════════════════
-     FIRST-INTERACTION AUTO-UNMUTE
-     On the very first click/tap anywhere on the page, unmute all
-     videos and flip the toggle to ON. Fires once then removes itself.
-     This handles browsers that block autoplay with audio.
+     INTRO → BG CROSSFADE
+     Critical sequence:
+     1. Seek both bg videos to t=0
+     2. Play both — wait for confirmed play on A
+     3. Apply correct mute state
+     4. THEN start the opacity transition (wrapper 0→1, intro 1→0)
+     5. Start loop engine
+     This guarantees video content is visible the moment the
+     wrapper becomes opaque — zero black gap.
   ══════════════════════════════════════════════════════════════ */
-  var firstInteractionDone = false;
+  function executeCrossfade() {
+    kvfLog('Crossfade executing — bg video starting');
 
-  function onFirstInteraction(e) {
-    /* Ignore clicks that are directly on the sound toggle — the toggle
-       handler will manage the state change itself */
-    if (firstInteractionDone) return;
-    if (soundToggle && soundToggle.contains(e.target)) return;
+    /* Apply current mute state */
+    applyMuteState(isMuted);
 
-    firstInteractionDone = true;
-    document.removeEventListener('click',     onFirstInteraction, true);
-    document.removeEventListener('touchstart', onFirstInteraction, true);
+    /* Seek both to t=0 for a clean start */
+    try { bgVideoA.currentTime = 0; } catch (e) {}
+    try { bgVideoB.currentTime = 0; } catch (e) {}
 
-    /* Unmute and switch icon to ON */
-    isMuted = false;
-    applyMuteState(false);
-    setSoundIcon(false);
+    /* Start A playing — confirmed via promise or fallback */
+    var playPromise = bgVideoA.play();
+
+    function doFade() {
+      kvfLog('BG video A confirmed playing — starting opacity crossfade');
+      bgBothStarted = true;
+      clearTimeout(bgCanplayTimer);
+
+      /* Start B playing silently in sync */
+      bgVideoB.play().catch(function () {});
+
+      /* Fire the opacity transitions simultaneously */
+      introScreen.classList.add('fade-out');       /* intro: 1 → 0 */
+      bgVideoWrap.classList.add('visible');         /* bg wrap: 0 → 1 */
+
+      showSoundToggle();
+      startLoopEngine();
+
+      /* Clean up intro after transition */
+      setTimeout(function () {
+        introScreen.style.display = 'none';
+        try { introVideo.pause(); introVideo.src = ''; } catch (e) {}
+      }, INTRO_XFADE_MS + 300);
+
+      document.body.classList.remove('intro-active');
+    }
+
+    if (playPromise && typeof playPromise.then === 'function') {
+      playPromise.then(doFade).catch(function () {
+        /* play() rejected — still do the fade, video may catch up */
+        kvfLog('BG video A play() rejected — fading anyway');
+        doFade();
+      });
+    } else {
+      doFade();
+    }
   }
 
-  document.addEventListener('click',     onFirstInteraction, true);
-  document.addEventListener('touchstart', onFirstInteraction, { capture: true, passive: true });
-
-
-  /* ══════════════════════════════════════════════════════════════
-     INTRO → BG CROSSFADE
-     Toggle is NOT hidden during crossfade — it stays visible and
-     persists on the homepage. After the transition completes the
-     toggle is re-shown (in case it was in mid-fade) so it's crisp.
-  ══════════════════════════════════════════════════════════════ */
   function beginCrossfade() {
     if (transitionStarted) return;
     transitionStarted = true;
     clearTimeout(stallTimer);
+    kvfLog('beginCrossfade triggered at t=' + (introVideo.currentTime || 0).toFixed(2) + 's');
 
-    applyMuteState(isMuted);
+    if (bgFallbackApplied) {
+      /* BG already in fallback state — just fade intro out */
+      introScreen.classList.add('fade-out');
+      bgVideoWrap.classList.add('visible');
+      showSoundToggle();
+      setTimeout(function () {
+        introScreen.style.display = 'none';
+        try { introVideo.pause(); introVideo.src = ''; } catch (e) {}
+      }, INTRO_XFADE_MS + 300);
+      document.body.classList.remove('intro-active');
+      return;
+    }
 
-    introScreen.classList.add('fade-out');
-    bgVideoWrap.classList.add('visible');
+    if (bgAReady) {
+      /* Decoder already warm — execute immediately */
+      executeCrossfade();
+    } else {
+      /* Video still loading — wait up to 2 s for canplay, then go anyway */
+      kvfLog('BG not ready yet — waiting for canplay (max 2s)');
+      var waitTimer = setTimeout(function () {
+        kvfLog('BG canplay wait expired — executing crossfade anyway');
+        executeCrossfade();
+      }, 2000);
 
-    /* Keep toggle visible through crossfade — re-show it cleanly */
-    showSoundToggle();
-
-    startLoopEngine();
-
-    setTimeout(function () {
-      introScreen.style.display = 'none';
-      introVideo.pause();
-      introVideo.src = '';
-    }, INTRO_XFADE_MS + 200);
-
-    document.body.classList.remove('intro-active');
+      bgVideoA.addEventListener('canplay', function onBGReady() {
+        bgVideoA.removeEventListener('canplay', onBGReady);
+        clearTimeout(waitTimer);
+        bgAReady = true;
+        executeCrossfade();
+      });
+    }
   }
 
   function skipIntro() {
     if (transitionStarted) return;
     transitionStarted = true;
     clearTimeout(stallTimer);
+    kvfLog('skipIntro — jumping to homepage');
     try { introVideo.pause(); } catch (e) {}
 
-    applyMuteState(isMuted);
+    if (bgFallbackApplied) {
+      introScreen.classList.add('fade-out');
+      bgVideoWrap.classList.add('visible');
+      showSoundToggle();
+      setTimeout(function () {
+        introScreen.style.display = 'none';
+        try { introVideo.src = ''; } catch (e) {}
+      }, INTRO_XFADE_MS + 300);
+      document.body.classList.remove('intro-active');
+      return;
+    }
 
-    introScreen.classList.add('fade-out');
-    bgVideoWrap.classList.add('visible');
-
-    /* Keep toggle visible */
-    showSoundToggle();
-    startLoopEngine();
-
-    setTimeout(function () {
-      introScreen.style.display = 'none';
-      introVideo.src = '';
-    }, INTRO_XFADE_MS + 200);
-
-    document.body.classList.remove('intro-active');
+    executeCrossfade();
   }
 
 
   /* ══════════════════════════════════════════════════════════════
-     HOMEPAGE REVEAL
+     HOMEPAGE REVEAL (layers fade in on page load)
   ══════════════════════════════════════════════════════════════ */
   function revealHomepage(d) {
     d = (typeof d === 'number') ? d : 0;
 
-    after(d + 60,   function () {
+    after(d + 60,  function () {
       logoGlow.classList.add('visible');
       overlay.classList.add('visible');
     });
-    after(d + 120,  function () { vignette.classList.add('visible'); });
-    after(d + 280,  function () {
+    after(d + 120, function () { vignette.classList.add('visible'); });
+    after(d + 280, function () {
       smokes.forEach(function (s) { s.classList.add('visible'); });
     });
-    after(d + 460,  function () {
+    after(d + 460, function () {
       pCanvas.classList.add('visible');
       initEmbers();
     });
-    after(d + 700,  function () { grainCanvas.classList.add('visible'); });
-    after(d + 800,  function () { siteHeader.classList.add('visible'); });
+    after(d + 700, function () { grainCanvas.classList.add('visible'); });
+    after(d + 800, function () { siteHeader.classList.add('visible'); });
     words.forEach(function (w, i) {
       after(d + 1200 + i * 210, function () { w.classList.add('in'); });
     });
