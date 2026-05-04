@@ -61,15 +61,15 @@
 
   /* ── Timing constants ───────────────────────────────────────────
      Intro:    11.037 s total. Crossfade to homepage starts at 9.3 s.
-     BG loop:   7.037 s total. Dual-video swap starts at 5.537 s
-                (= 7.037 - LOOP_XFADE_SEC). Transition 1.5 s.
+     BG loop:  39.833 s total. Dual-video swap starts at 38.333 s
+               (= 39.833 - LOOP_XFADE_SEC). Transition 1.5 s.
   ─────────────────────────────────────────────────────────────── */
   var INTRO_FADE_SEC   = 9.3;
   var INTRO_XFADE_MS   = 1500;
   var STALL_TIMEOUT_MS = 3000;   /* 3 s hard timeout — skip intro  */
-  var BG_CANPLAY_MS    = 5000;   /* 5 s to wait for bg canplay     */
+  var BG_CANPLAY_MS    = 8000;   /* 8 s to wait for bg canplay (larger file) */
 
-  var BG_DURATION_SEC  = 7.037;  /* exact ffprobe duration         */
+  var BG_DURATION_SEC  = 39.833; /* exact ffprobe duration         */
   var LOOP_XFADE_SEC   = 1.5;    /* seconds before end — start swap */
   var LOOP_XFADE_MS    = 1500;   /* must match CSS transition      */
 
