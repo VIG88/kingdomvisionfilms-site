@@ -34,6 +34,13 @@
 (function () {
   'use strict';
 
+  /* ── Debug logger ───────────────────────────────────────────── */
+  function kvfLog(msg, data) {
+    var out = '[KVF] ' + msg;
+    if (data !== undefined) { console.log(out, data); } else { console.log(out); }
+  }
+  kvfLog('script.js loaded — KVF Cinematic Engine v16');
+
   /* ── DOM references ─────────────────────────────────────────── */
   function $(id) { return document.getElementById(id); }
 
@@ -98,6 +105,7 @@
   function applyBgFallback() {
     if (bgFallbackApplied) return;
     bgFallbackApplied = true;
+    kvfLog('Background video fallback applied — showing static KVF image');
 
     /* Stop any pending canplay timer */
     clearTimeout(bgCanplayTimer);
@@ -210,20 +218,27 @@
     if (!bgAReady || !bgBReady) return;
     /* Both decoders are ready — cancel fallback timer, seek to 0, start */
     clearTimeout(bgCanplayTimer);
+    kvfLog('Background video loaded — both A+B ready, starting sync playback');
     bgVideoA.currentTime = 0;
     bgVideoB.currentTime = 0;
-    bgVideoA.play().catch(function () {});
+    bgVideoA.play().then(function () {
+      kvfLog('Background video A — playing');
+    }).catch(function (err) {
+      kvfLog('Background video A — play() blocked', err.message);
+    });
     bgVideoB.play().catch(function () {});
   }
 
   bgVideoA.addEventListener('canplay', function onAReady() {
     bgVideoA.removeEventListener('canplay', onAReady);
     bgAReady = true;
+    kvfLog('Background video A — canplay fired', bgVideoA.src);
     tryStartBothSync();
   });
   bgVideoB.addEventListener('canplay', function onBReady() {
     bgVideoB.removeEventListener('canplay', onBReady);
     bgBReady = true;
+    kvfLog('Background video B — canplay fired', bgVideoB.src);
     tryStartBothSync();
   });
 
@@ -231,12 +246,14 @@
   var bgAErrored = false;
   var bgBErrored = false;
 
-  bgVideoA.addEventListener('error', function () {
+  bgVideoA.addEventListener('error', function (e) {
     bgAErrored = true;
+    kvfLog('Background video error — video A', bgVideoA.error ? bgVideoA.error.message : e.type);
     if (bgBErrored) applyBgFallback();
   }, { once: true });
-  bgVideoB.addEventListener('error', function () {
+  bgVideoB.addEventListener('error', function (e) {
     bgBErrored = true;
+    kvfLog('Background video error — video B', bgVideoB.error ? bgVideoB.error.message : e.type);
     if (bgAErrored) applyBgFallback();
   }, { once: true });
 
@@ -252,9 +269,9 @@
     }, 8000);  /* 8 s of stall → give up and show static bg            */
   }
 
-  bgVideoA.addEventListener('waiting', resetBgStallTimer);
-  bgVideoA.addEventListener('playing', function () { clearTimeout(bgStallTimer); });
-  bgVideoB.addEventListener('playing', function () { clearTimeout(bgStallTimer); });
+  bgVideoA.addEventListener('waiting', function () { kvfLog('Background video A — waiting/buffering'); resetBgStallTimer(); });
+  bgVideoA.addEventListener('playing', function () { kvfLog('Background video playing — A active'); clearTimeout(bgStallTimer); });
+  bgVideoB.addEventListener('playing', function () { kvfLog('Background video playing — B active'); clearTimeout(bgStallTimer); });
 
   bgVideoA.load();
   bgVideoB.load();
@@ -407,6 +424,7 @@
   introVideo.addEventListener('canplaythrough', function onCPT() {
     introVideo.removeEventListener('canplaythrough', onCPT);
     introCPTfired = true;
+    kvfLog('Intro video loaded — canplaythrough fired');
     clearTimeout(cptFallback);
     clearTimeout(stallTimer);
 
@@ -427,6 +445,7 @@
   /* ── canplay: first decodable frame ready ───────────────────── */
   introVideo.addEventListener('canplay', function onCP() {
     introVideo.removeEventListener('canplay', onCP);
+    kvfLog('Intro video loaded — canplay fired');
     clearTimeout(stallTimer);
     introLoader.classList.add('hidden');
 
@@ -465,6 +484,7 @@
 
   /* ── error / source error ────────────────────────────────────── */
   introVideo.addEventListener('error', function () {
+    kvfLog('Intro video error — skipping to homepage', introVideo.error ? introVideo.error.message : 'unknown');
     skipIntro();
   }, { once: true });
 
@@ -491,6 +511,7 @@
   introVideo.addEventListener('playing', function () {
     reBuffering = false;
     videoStarted = true;
+    kvfLog('Intro video playing');
     clearTimeout(stallTimer);
   });
 
