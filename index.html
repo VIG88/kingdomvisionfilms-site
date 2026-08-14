@@ -157,7 +157,60 @@
 
   <!-- Scrollable anchor sections -->
   <section id="about"      class="anchor-section"></section>
-  <section id="projects"   class="anchor-section"><span class="section-label">Projects</span></section>
+  <!-- ═══════════════════════════════════════════════════════════
+       IN DEVELOPMENT — cinematic development slate (Phase 1: Mahogany Row)
+       Nav "IN DEVELOPMENT" → #projects. Self-contained section; does not
+       touch the homepage hero / video system.
+  ═══════════════════════════════════════════════════════════════ -->
+  <section id="projects" class="dev-section" aria-label="In Development">
+
+    <div class="dev-intro dev-reveal">
+      <p class="dev-eyebrow">Kingdom Vision Films</p>
+      <h2 class="dev-title">In Development</h2>
+      <p class="dev-subline">Stories being built for what comes next.</p>
+    </div>
+
+    <article id="mr-slate" class="slate dev-reveal" aria-labelledby="mr-title">
+
+      <div class="slate-frame">
+        <div class="slate-media">
+          <div class="slate-media-img" role="img" aria-label="Mahogany Row key art"></div>
+          <div class="slate-scrim" aria-hidden="true"></div>
+          <div class="slate-vignette" aria-hidden="true"></div>
+        </div>
+
+        <div class="slate-lead">
+          <p class="slate-eyebrow">Original Series&nbsp;·&nbsp;Sci-Fi Thriller</p>
+          <h3 id="mr-title" class="slate-title">Mahogany Row</h3>
+          <p class="slate-tagline">Some lives aren't chosen. They're predestined.</p>
+          <button id="mr-explore" class="slate-explore" type="button"
+                  aria-expanded="false" aria-controls="mr-detail">
+            <span class="slate-explore-label">Explore Project</span>
+            <span class="slate-explore-arrow" aria-hidden="true">→</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="mr-detail" class="slate-detail-wrap" role="region" aria-label="Mahogany Row details">
+        <div class="slate-detail">
+          <div class="slate-detail-inner">
+            <div class="slate-synopsis">
+              <p>Cary and Zion were never meant to be brothers. Brought together by tragedy and raised under the relentless guidance of a mysterious former operative, they grow into two exceptionally gifted young men whose bond is nearly unbreakable.</p>
+              <p>But when their past begins revealing secrets neither was meant to uncover, they find themselves drawn into Mahogany Row—a hidden world where extraordinary ability comes at a price, and the truth about who they are could change everything.</p>
+            </div>
+            <dl class="slate-meta">
+              <div class="meta-item"><dt>Status</dt><dd>In Development</dd></div>
+              <div class="meta-item"><dt>Created By</dt><dd>Roman Michael</dd></div>
+              <div class="meta-item"><dt>Format</dt><dd>Original Series</dd></div>
+              <div class="meta-item"><dt>Genre</dt><dd>Sci-Fi Thriller</dd></div>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+    </article>
+
+  </section>
   <section id="films"      class="anchor-section"><span class="section-label">Films</span></section>
   <section id="television" class="anchor-section"><span class="section-label">Television</span></section>
   <section id="contact"    class="anchor-section"><span class="section-label">Contact</span></section>
