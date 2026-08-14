@@ -174,9 +174,37 @@
 
       <div class="slate-frame">
         <div class="slate-media">
+          <!-- Key art: instant poster / loading state / reduced-motion + failure fallback -->
           <div class="slate-media-img" role="img" aria-label="Mahogany Row key art"></div>
+          <!-- Motion banner (theme music baked in) — streams from R2, lazy-loaded,
+               only plays once the visitor selects EXPLORE PROJECT. -->
+          <video id="mr-video" class="slate-video" playsinline muted loop preload="none"
+                 disablepictureinpicture disableremoteplayback
+                 poster="https://media.kingdomvisionfilms.com/mahogany-row/keyart.png"
+                 aria-label="Mahogany Row motion banner">
+            <source src="https://media.kingdomvisionfilms.com/mahogany-row/motion-banner.mp4" type="video/mp4" />
+          </video>
           <div class="slate-scrim" aria-hidden="true"></div>
           <div class="slate-vignette" aria-hidden="true"></div>
+
+          <!-- Motion-experience controls (over the banner, revealed only while open) -->
+          <div class="mr-controls">
+            <button id="mr-back" class="mr-back" type="button">
+              <span class="mr-back-arrow" aria-hidden="true">←</span>
+              <span>In&nbsp;Development</span>
+            </button>
+            <button id="mr-sound" class="mr-sound" type="button" aria-pressed="false" aria-label="Enable theme music">
+              <span class="mr-sound-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path class="mr-spk" d="M4 9.3H7L11 5.7V18.3L7 14.7H4V9.3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+                  <path class="mr-wave1" d="M14.4 9.1C15.6 10.3 15.6 13.7 14.4 14.9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                  <path class="mr-wave2" d="M16.9 6.9C18.9 8.9 18.9 15.1 16.9 17.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                  <line class="mr-slash" x1="14" y1="7.5" x2="19.2" y2="16.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                </svg>
+              </span>
+              <span class="mr-sound-label">Sound</span>
+            </button>
+          </div>
         </div>
 
         <div class="slate-lead">
@@ -195,8 +223,7 @@
         <div class="slate-detail">
           <div class="slate-detail-inner">
             <div class="slate-synopsis">
-              <p>Cary and Zion were never meant to be brothers. Brought together by tragedy and raised under the relentless guidance of a mysterious former operative, they grow into two exceptionally gifted young men whose bond is nearly unbreakable.</p>
-              <p>But when their past begins revealing secrets neither was meant to uncover, they find themselves drawn into Mahogany Row—a hidden world where extraordinary ability comes at a price, and the truth about who they are could change everything.</p>
+              <p>Two brothers bound by blood but divided by destiny are drawn into a hidden world where power, identity, and evolution collide. As the truth surrounding their origins begins to surface, Cary and Zion discover that some legacies are inherited — and others are engineered.</p>
             </div>
             <dl class="slate-meta">
               <div class="meta-item"><dt>Status</dt><dd>In Development</dd></div>
