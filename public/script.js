@@ -823,3 +823,47 @@
   }
 
 })();
+
+
+/* ═══════════════════════════════════════════════════════════════
+   IN DEVELOPMENT — Mahogany Row slate interactions
+   Self-contained module. Independent of the cinematic video engine
+   above; touches only the #projects development section.
+   ═══════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  var slate   = document.getElementById('mr-slate');
+  var explore = document.getElementById('mr-explore');
+  var detail  = document.getElementById('mr-detail');
+  var section = document.getElementById('projects');
+
+  /* Explore Project → reveal / collapse the expanded detail */
+  if (explore && slate) {
+    var label = explore.querySelector('.slate-explore-label');
+    explore.addEventListener('click', function () {
+      var expanded = slate.classList.toggle('expanded');
+      explore.setAttribute('aria-expanded', String(expanded));
+      if (label) { label.textContent = expanded ? 'Close Project' : 'Explore Project'; }
+      if (expanded && detail && typeof detail.scrollIntoView === 'function') {
+        setTimeout(function () {
+          detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 280);
+      }
+    });
+  }
+
+  /* Soft cinematic entrance when the section scrolls into view */
+  if (section) {
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) { section.classList.add('in-view'); io.disconnect(); }
+        });
+      }, { threshold: 0.12 });
+      io.observe(section);
+    } else {
+      section.classList.add('in-view');
+    }
+  }
+})();
