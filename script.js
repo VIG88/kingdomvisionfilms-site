@@ -75,7 +75,9 @@
   var INTRO_XFADE_MS   = 1800;    /* 1.8 s crossfade as required          */
   var STALL_TIMEOUT_MS = 3000;    /* 3 s hard timeout → skip intro        */
   var BG_CANPLAY_MS    = 20000;   /* 20 s before bg fallback fires        */
-  var BG_DURATION_SEC  = 39.833;  /* exact ffprobe duration               */
+  /* NOTE: loop-swap timing is derived at runtime from the actual media
+     duration (activeVid.duration) — never a hard-coded constant — so the
+     R2 background video's real length drives the crossfade automatically. */
   var LOOP_XFADE_SEC   = 1.5;     /* seconds before end → start loop swap */
   var LOOP_XFADE_MS    = 1500;    /* must match CSS transition duration   */
 
@@ -120,11 +122,12 @@
   }
 
   function applyMuteState(muted) {
-    [introVideo, bgVideoA, bgVideoB].forEach(function (v) {
-      if (!v) return;
-      v.muted  = muted;
-      v.volume = muted ? 0 : 1;
-    });
+    if (introVideo) { introVideo.muted = muted; introVideo.volume = muted ? 0 : 1; }
+    /* Only the ACTIVE (visible) background video carries audio. The idle
+       one is always kept muted so the two in-sync loop videos can never
+       produce doubled/flanged audio during the dual-video crossfade. */
+    if (activeVid) { activeVid.muted = muted; activeVid.volume = muted ? 0 : 1; }
+    if (idleVid)   { idleVid.muted   = true;  idleVid.volume   = 0; }
   }
 
   function showSoundToggle() {
@@ -288,19 +291,26 @@
       swapping = true;
       kvfLog('Loop swap — ' + (activeVid === bgVideoA ? 'A→B' : 'B→A'));
 
-      /* Ensure idle video is playing and has correct mute state */
-      idleVid.muted  = isMuted;
-      idleVid.volume = isMuted ? 0 : 1;
-      idleVid.play().catch(function () {});
+      var incoming = idleVid;
+      var outgoing = activeVid;
+
+      /* Hand audio to the incoming (soon-visible) video and silence the
+         outgoing one, so exactly one background track is ever audible.
+         Both videos are in sync, so the hand-off is seamless AND doubled
+         audio can never occur during the crossfade. */
+      incoming.muted  = isMuted;
+      incoming.volume = isMuted ? 0 : 1;
+      incoming.play().catch(function () {});
+      outgoing.muted  = true;
+      outgoing.volume = 0;
 
       /* CSS crossfade — both at same currentTime → invisible blend */
-      activeVid.classList.remove('bg-active');
-      activeVid.classList.add('bg-idle');
-      idleVid.classList.remove('bg-idle');
-      idleVid.classList.add('bg-active');
+      outgoing.classList.remove('bg-active');
+      outgoing.classList.add('bg-idle');
+      incoming.classList.remove('bg-idle');
+      incoming.classList.add('bg-active');
 
-      var outgoing = activeVid;
-      activeVid = idleVid;
+      activeVid = incoming;
       idleVid   = outgoing;
 
       /* After CSS transition completes: reset outgoing to t=0 so it
@@ -512,7 +522,14 @@
     /* Start A playing — confirmed via promise or fallback */
     var playPromise = bgVideoA.play();
 
+    /* Runs exactly once. Guards against the play() promise and the safety
+       timer both firing. */
+    var crossfadeDone = false;
+
     function doFade() {
+      if (crossfadeDone) return;
+      crossfadeDone = true;
+      clearTimeout(revealSafety);
       kvfLog('BG video A confirmed playing — starting opacity crossfade');
       bgBothStarted = true;
       clearTimeout(bgCanplayTimer);
@@ -535,6 +552,27 @@
 
       document.body.classList.remove('intro-active');
     }
+
+    /* Safety net — the R2 background video is remote, so a network error
+       can leave bgVideoA.play() pending forever (no resolve, no reject,
+       no error event). Never let the intro loader hang: if play() has not
+       confirmed within a generous window (the bg has already been
+       preloading throughout the intro), reveal the homepage over the
+       existing static fallback image instead of a black screen. */
+    var revealSafety = setTimeout(function () {
+      if (crossfadeDone) return;
+      crossfadeDone = true;
+      kvfLog('BG video did not start in time — revealing homepage over static fallback');
+      applyBgFallback();                             /* static KVF image  */
+      introScreen.classList.add('fade-out');         /* intro: 1 → 0      */
+      bgVideoWrap.classList.add('visible');          /* bg wrap: 0 → 1    */
+      showSoundToggle();
+      setTimeout(function () {
+        introScreen.style.display = 'none';
+        try { introVideo.pause(); introVideo.src = ''; } catch (e) {}
+      }, INTRO_XFADE_MS + 300);
+      document.body.classList.remove('intro-active');
+    }, 6000);
 
     if (playPromise && typeof playPromise.then === 'function') {
       playPromise.then(doFade).catch(function () {
