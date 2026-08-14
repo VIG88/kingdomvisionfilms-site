@@ -99,6 +99,8 @@
   var bgFallbackApplied = false;
   var bgCanplayTimer    = null;
   var bgBothStarted     = false;  /* true once both bg videos are playing */
+  var audioDucked       = false;  /* true while another experience (e.g. Mahogany
+                                     Row) owns the audio — homepage stays silenced */
 
 
   /* ══════════════════════════════════════════════════════════════
@@ -129,6 +131,35 @@
     if (activeVid) { activeVid.muted = muted; activeVid.volume = muted ? 0 : 1; }
     if (idleVid)   { idleVid.muted   = true;  idleVid.volume   = 0; }
   }
+
+  /* ══════════════════════════════════════════════════════════════
+     AUDIO OWNERSHIP HOOK
+     Lets a separate experience (the Mahogany Row motion banner) take
+     over as the ONLY audio source. Ducking pauses + mutes the homepage
+     videos and halts the loop engine (so a loop swap can't re-unmute
+     them); restoring resumes playback and the prior mute state. Exposed
+     on window so the self-contained IN DEVELOPMENT module can call it
+     without reaching into this engine's internals.
+  ══════════════════════════════════════════════════════════════ */
+  window.kvfDuckHomepageAudio = function (duck) {
+    audioDucked = !!duck;
+    if (audioDucked) {
+      try { introVideo.pause(); } catch (e) {}
+      try { bgVideoA.pause(); }  catch (e) {}
+      try { bgVideoB.pause(); }  catch (e) {}
+      [introVideo, bgVideoA, bgVideoB].forEach(function (v) {
+        if (v) { v.muted = true; v.volume = 0; }
+      });
+      stopLoopEngine();
+    } else {
+      if (transitionStarted && !bgFallbackApplied) {
+        bgVideoA.play().catch(function () {});
+        bgVideoB.play().catch(function () {});
+        startLoopEngine();
+      }
+      applyMuteState(isMuted);
+    }
+  };
 
   function showSoundToggle() {
     if (!soundToggle) return;
@@ -475,6 +506,7 @@
 
   /* Tab visibility */
   document.addEventListener('visibilitychange', function () {
+    if (audioDucked) return;   /* Mahogany Row owns audio/playback — leave homepage paused */
     if (document.hidden) {
       introVideo.pause();
       if (transitionStarted) {
@@ -826,44 +858,189 @@
 
 
 /* ═══════════════════════════════════════════════════════════════
-   IN DEVELOPMENT — Mahogany Row slate interactions
-   Self-contained module. Independent of the cinematic video engine
-   above; touches only the #projects development section.
+   IN DEVELOPMENT — Mahogany Row motion experience
+   Self-contained module. The homepage video engine above exposes
+   window.kvfDuckHomepageAudio() so this module can take sole audio
+   ownership while the motion banner plays.
+
+   Flow:  card (key art) → EXPLORE PROJECT → motion banner opens.
+   The banner streams from R2, loops natively (no hard-cut re-seek —
+   the browser handles the loop from the media's own duration), and
+   attempts to start WITH the theme music from the click gesture,
+   falling back to muted + a subtle SOUND control if the browser
+   blocks audible autoplay.
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
 
-  var slate   = document.getElementById('mr-slate');
-  var explore = document.getElementById('mr-explore');
-  var detail  = document.getElementById('mr-detail');
-  var section = document.getElementById('projects');
+  var $ = function (id) { return document.getElementById(id); };
+  var slate   = $('mr-slate');
+  var explore = $('mr-explore');
+  var detail  = $('mr-detail');
+  var section = $('projects');
+  var video   = $('mr-video');
+  var backBtn = $('mr-back');
+  var soundBtn= $('mr-sound');
+  if (!slate || !explore) return;
 
-  /* Explore Project → reveal / collapse the expanded detail */
-  if (explore && slate) {
-    var label = explore.querySelector('.slate-explore-label');
-    explore.addEventListener('click', function () {
-      var expanded = slate.classList.toggle('expanded');
-      explore.setAttribute('aria-expanded', String(expanded));
-      if (label) { label.textContent = expanded ? 'Close Project' : 'Explore Project'; }
-      if (expanded && detail && typeof detail.scrollIntoView === 'function') {
-        setTimeout(function () {
-          detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }, 280);
-      }
-    });
+  var mql = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  function reducedMotion() { return !!(mql && mql.matches); }
+
+  var opened      = false;
+  var themeMuted  = true;    /* is the theme music currently muted?      */
+  var loadStarted = false;   /* has the banner begun streaming?          */
+  var unmuteArmed = false;
+
+  /* ── Loading strategy — never fetch the banner on homepage landing ── */
+  function warmVideo() {
+    if (!video || loadStarted) return;
+    try { if (video.preload === 'none') video.preload = 'metadata'; } catch (e) {}
+  }
+  function beginStreaming() {
+    if (!video || loadStarted) return;
+    loadStarted = true;
+    try { video.preload = 'auto'; } catch (e) {}
   }
 
-  /* Soft cinematic entrance when the section scrolls into view */
+  function revealBanner() {
+    if (video && opened && !reducedMotion()) { video.classList.add('is-playing'); }
+  }
+
+  function updateSoundUI() {
+    if (!soundBtn) return;
+    soundBtn.classList.toggle('is-on', !themeMuted);
+    soundBtn.classList.toggle('cue', themeMuted && opened);
+    soundBtn.setAttribute('aria-pressed', String(!themeMuted));
+    soundBtn.setAttribute('aria-label', themeMuted ? 'Enable theme music' : 'Mute theme music');
+  }
+
+  /* ── Enable the theme on the visitor's next gesture (autoplay-blocked path) ── */
+  function onNextGesture(e) {
+    if (soundBtn && soundBtn.contains(e.target)) return;
+    if (backBtn && backBtn.contains(e.target)) return;
+    disarmUnmute();
+    if (opened && video) {
+      themeMuted = false; video.muted = false; video.volume = 1;
+      if (video.paused) { video.play().catch(function () {}); }
+      revealBanner(); updateSoundUI();
+    }
+  }
+  function armUnmute() {
+    if (unmuteArmed) return; unmuteArmed = true;
+    document.addEventListener('pointerdown', onNextGesture, true);
+    document.addEventListener('keydown',     onNextGesture, true);
+  }
+  function disarmUnmute() {
+    if (!unmuteArmed) return; unmuteArmed = false;
+    document.removeEventListener('pointerdown', onNextGesture, true);
+    document.removeEventListener('keydown',     onNextGesture, true);
+  }
+
+  /* ── Open the motion experience (called from the EXPLORE click gesture) ── */
+  function open() {
+    if (opened) return;
+    opened = true;
+    slate.classList.add('expanded');
+    explore.setAttribute('aria-expanded', 'true');
+
+    /* Audio isolation: hand sole audio ownership to Mahogany Row */
+    if (window.kvfDuckHomepageAudio) { try { window.kvfDuckHomepageAudio(true); } catch (e) {} }
+
+    if (detail) {
+      setTimeout(function () {
+        try { detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
+      }, 320);
+    }
+
+    if (backBtn) { try { backBtn.focus({ preventScroll: true }); } catch (e) { backBtn.focus(); } }
+
+    if (!video) return;
+
+    /* Reduced motion → stay on the still key art, no motion, no audio */
+    if (reducedMotion()) { themeMuted = true; updateSoundUI(); return; }
+
+    beginStreaming();
+
+    /* Attempt AUDIBLE autoplay directly from this user gesture */
+    video.muted = false; video.volume = 1;
+    var p = video.play();
+    if (p && typeof p.then === 'function') {
+      p.then(function () {
+        themeMuted = false; updateSoundUI(); revealBanner();
+      }).catch(function () {
+        /* Audible autoplay blocked → play muted, invite sound, unmute on next gesture */
+        themeMuted = true; video.muted = true; video.volume = 0; updateSoundUI();
+        video.play().then(revealBanner).catch(function () { /* key art remains */ });
+        armUnmute();
+      });
+    } else {
+      themeMuted = !!video.muted; updateSoundUI(); revealBanner();
+    }
+  }
+
+  /* ── Return to IN DEVELOPMENT ── */
+  function close() {
+    if (!opened) return;
+    opened = false;
+    slate.classList.remove('expanded');
+    explore.setAttribute('aria-expanded', 'false');
+    disarmUnmute();
+
+    if (video) {
+      video.classList.remove('is-playing');
+      try { video.pause(); } catch (e) {}
+      try { video.muted = true; video.volume = 0; } catch (e) {}
+      try { video.currentTime = 0; } catch (e) {}
+    }
+    themeMuted = true; updateSoundUI();
+
+    /* Restore the homepage soundtrack to its prior state */
+    if (window.kvfDuckHomepageAudio) { try { window.kvfDuckHomepageAudio(false); } catch (e) {} }
+    try { explore.focus({ preventScroll: true }); } catch (e) {}
+  }
+
+  /* ── Theme sound toggle ── */
+  function toggleSound() {
+    if (!video) return;
+    themeMuted = !themeMuted;
+    video.muted = themeMuted;
+    video.volume = themeMuted ? 0 : 1;
+    if (!themeMuted) {
+      disarmUnmute();
+      if (video.paused) { video.play().catch(function () {}); }
+      revealBanner();
+    }
+    updateSoundUI();
+  }
+
+  /* ── Wire up ── */
+  explore.addEventListener('click', open);
+  if (backBtn)  backBtn.addEventListener('click', close);
+  if (soundBtn) soundBtn.addEventListener('click', toggleSound);
+  explore.addEventListener('pointerenter', warmVideo);
+  explore.addEventListener('focus', warmVideo);
+
+  if (video) {
+    video.addEventListener('loadeddata', revealBanner);
+    video.addEventListener('playing',    revealBanner);
+    video.addEventListener('error', function () { if (video) video.classList.remove('is-playing'); });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (opened && (e.key === 'Escape' || e.key === 'Esc')) { close(); }
+  });
+
+  /* ── Soft cinematic entrance + warm the banner as the section approaches ── */
   if (section) {
     if ('IntersectionObserver' in window) {
       var io = new IntersectionObserver(function (entries) {
         entries.forEach(function (e) {
-          if (e.isIntersecting) { section.classList.add('in-view'); io.disconnect(); }
+          if (e.isIntersecting) { section.classList.add('in-view'); warmVideo(); io.disconnect(); }
         });
       }, { threshold: 0.12 });
       io.observe(section);
     } else {
-      section.classList.add('in-view');
+      section.classList.add('in-view'); warmVideo();
     }
   }
 })();

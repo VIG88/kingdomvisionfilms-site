@@ -1002,8 +1002,8 @@ body.intro-active { overflow: hidden; }
 .slate-explore:focus-visible { outline: 2px solid rgba(201,168,76,0.55); outline-offset: 6px; }
 
 /* Expanded detail — reveals below the art (never covers the key art) */
-.slate.expanded .slate-media-img { filter: brightness(0.46) saturate(0.92); transform: scale(1.012); animation-play-state: paused; }
-.slate.expanded .slate-scrim { opacity: 0.45; }
+.slate.expanded .slate-media-img { animation-play-state: paused; }
+.slate.expanded .slate-scrim { opacity: 0; }
 
 .slate-detail-wrap {
   display: grid; grid-template-rows: 0fr;
@@ -1060,7 +1060,6 @@ body.intro-active { overflow: hidden; }
   .slate-scrim { background: linear-gradient(to top, rgba(3,3,3,0.55), rgba(0,0,0,0) 46%); }
   .slate-title { font-size: clamp(30px, 9vw, 46px); }
   .slate-tagline { font-size: clamp(14px, 4.4vw, 19px); }
-  .slate.expanded .slate-media-img { filter: brightness(0.62) saturate(0.95); }
 }
 
 /* ── Reduced motion ─────────────────────────────────────────────── */
@@ -1070,4 +1069,95 @@ body.intro-active { overflow: hidden; }
   .slate-detail-wrap { transition: none; }
   .slate-detail-inner { transition: none; }
   .slate-explore::after, .slate-explore-arrow, .slate-scrim, .slate-media-img { transition: none; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   MAHOGANY ROW — motion banner experience (opens on EXPLORE PROJECT)
+   Key art stays underneath as poster / loading / failure fallback;
+   the motion banner dissolves in on top when it is ready to play.
+   ═══════════════════════════════════════════════════════════════ */
+.slate-video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: contain;               /* never crop/stretch the banner or its title */
+  background: #000;
+  display: block; z-index: 1;
+  opacity: 0;                        /* hidden until a frame is ready → cinematic dissolve */
+  transition: opacity 0.85s ease;
+  pointer-events: none;
+}
+.slate-video.is-playing { opacity: 1; }
+
+/* Back + sound controls — subtle, only while the experience is open */
+.mr-controls {
+  position: absolute; z-index: 6;
+  bottom: clamp(16px, 2.4vw, 34px);
+  left: clamp(16px, 2.6vw, 44px);
+  right: auto;
+  display: flex; align-items: center; gap: clamp(12px, 1.2vw, 18px);
+  opacity: 0; transform: translateY(8px);
+  transition: opacity 0.6s ease 0.15s, transform 0.6s ease 0.15s;
+  pointer-events: none;
+}
+.slate.expanded .mr-controls { opacity: 1; transform: none; pointer-events: none; }
+.slate.expanded .mr-controls > * { pointer-events: auto; }
+
+.mr-back, .mr-sound {
+  appearance: none; -webkit-appearance: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 9px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: clamp(8.5px, 0.82vw, 10.5px);
+  font-weight: 300; letter-spacing: 0.34em; text-transform: uppercase;
+  color: rgba(240,226,198,0.86);
+  background: rgba(6,5,4,0.42);
+  border: 1px solid rgba(201,168,76,0.28);
+  border-radius: 999px;
+  padding: 9px 16px;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  text-shadow: 0 1px 8px rgba(0,0,0,0.8);
+  transition: color 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+}
+.mr-back:hover, .mr-sound:hover,
+.mr-back:focus-visible, .mr-sound:focus-visible {
+  color: var(--gold-pale); border-color: rgba(232,201,122,0.6); background: rgba(6,5,4,0.6);
+  outline: none;
+}
+.mr-back-arrow { display: inline-block; transition: transform 0.35s ease; }
+.mr-back:hover .mr-back-arrow { transform: translateX(-5px); }
+
+.mr-sound { letter-spacing: 0.30em; }
+.mr-sound-ico { display: inline-flex; color: var(--gold-light); }
+/* Muted state (default): show the slash, hide the waves */
+.mr-sound .mr-wave1, .mr-sound .mr-wave2 { opacity: 0; transition: opacity 0.3s ease; }
+.mr-sound .mr-slash { opacity: 1; transition: opacity 0.3s ease; }
+.mr-sound.is-on .mr-wave1, .mr-sound.is-on .mr-wave2 { opacity: 1; }
+.mr-sound.is-on .mr-slash { opacity: 0; }
+/* Gentle invitation to enable the theme when audible autoplay was blocked */
+.mr-sound.cue { animation: mrSoundCue 2.6s ease-in-out infinite; }
+@keyframes mrSoundCue {
+  0%, 100% { border-color: rgba(201,168,76,0.28); box-shadow: 0 0 0 0 rgba(201,168,76,0.0); }
+  50%      { border-color: rgba(232,201,122,0.7); box-shadow: 0 0 20px 0 rgba(201,168,76,0.22); }
+}
+
+/* When the motion experience is open, the overlaid card lead steps aside so
+   the banner (which may carry its own MAHOGANY ROW title) is unobstructed. */
+.slate.expanded .slate-lead { opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* Mobile: the lead already sits BELOW the art (not over the video), so keep
+     it visible — only hide the now-redundant Explore button once open. */
+  .slate.expanded .slate-lead { opacity: 1; pointer-events: auto; }
+  .slate.expanded .slate-explore { opacity: 0; pointer-events: none; height: 0; margin: 0; overflow: hidden; }
+  .mr-controls { bottom: 12px; left: 12px; right: auto; gap: 10px; }
+  .mr-back, .mr-sound { padding: 7px 12px; letter-spacing: 0.24em; gap: 7px; }
+}
+
+/* ── Reduced motion: default to the still key art, no auto-motion, no audio ── */
+@media (prefers-reduced-motion: reduce) {
+  .slate-video { transition: none; }
+  .mr-controls { transition: none; }
+  .mr-sound.cue { animation: none; }
+  .mr-sound { display: none; }        /* no motion/audio experience to control */
 }
