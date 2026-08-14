@@ -945,6 +945,8 @@
 
     /* Audio isolation: hand sole audio ownership to Mahogany Row */
     if (window.kvfDuckHomepageAudio) { try { window.kvfDuckHomepageAudio(true); } catch (e) {} }
+    /* Freeze the project slider on this slide while the project is open */
+    if (window.kvfSliderLock) { try { window.kvfSliderLock(true); } catch (e) {} }
 
     if (detail) {
       setTimeout(function () {
@@ -996,6 +998,8 @@
 
     /* Restore the homepage soundtrack to its prior state */
     if (window.kvfDuckHomepageAudio) { try { window.kvfDuckHomepageAudio(false); } catch (e) {} }
+    /* Return control to the slider (resumes on the slide we entered from) */
+    if (window.kvfSliderLock) { try { window.kvfSliderLock(false); } catch (e) {} }
     try { explore.focus({ preventScroll: true }); } catch (e) {}
   }
 
@@ -1043,4 +1047,122 @@
       section.classList.add('in-view'); warmVideo();
     }
   }
+})();
+
+
+/* ═══════════════════════════════════════════════════════════════
+   IN DEVELOPMENT — single-card cinematic project slider
+   One project at a time, cross-dissolve. Mahogany Row is slide 01
+   (flagship). Auto-advances ~8s, but pauses on hover/focus/touch,
+   while a project is open (kvfSliderLock), when off-screen, when the
+   tab is hidden, and under prefers-reduced-motion.
+   ═══════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  var section = document.getElementById('projects');
+  var slider  = document.getElementById('dev-slider');
+  if (!section || !slider) return;
+  var slides  = [].slice.call(slider.querySelectorAll('.dev-slide'));
+  if (slides.length < 2) return;
+
+  var prevBtn = section.querySelector('.dev-nav-prev');
+  var nextBtn = section.querySelector('.dev-nav-next');
+  var curEl   = section.querySelector('.dev-nav-cur');
+  var totEl   = section.querySelector('.dev-nav-total');
+
+  var AUTO_MS = 8000;
+  var mqlReduce = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  function reduce() { return !!(mqlReduce && mqlReduce.matches); }
+
+  var idx = 0, timer = null;
+  var hovering = false, focusing = false, locked = false, inView = false;
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+  function render() {
+    slides.forEach(function (s, k) {
+      var on = (k === idx);
+      s.classList.toggle('is-active', on);
+      s.setAttribute('aria-hidden', on ? 'false' : 'true');
+    });
+    if (curEl) curEl.textContent = pad(idx + 1);
+    if (totEl) totEl.textContent = pad(slides.length);
+  }
+  function go(i) { idx = (i + slides.length) % slides.length; render(); }
+  function next() { go(idx + 1); }
+  function prev() { go(idx - 1); }
+
+  function canAuto() {
+    return inView && !hovering && !focusing && !locked && !document.hidden && !reduce();
+  }
+  function stopAuto() { if (timer) { clearInterval(timer); timer = null; } }
+  function startAuto() {
+    stopAuto();
+    if (!canAuto()) return;
+    timer = setInterval(function () { if (canAuto()) next(); else stopAuto(); }, AUTO_MS);
+  }
+
+  /* Manual controls */
+  if (nextBtn) nextBtn.addEventListener('click', function () { next(); startAuto(); });
+  if (prevBtn) prevBtn.addEventListener('click', function () { prev(); startAuto(); });
+
+  /* Pause while the visitor is engaging with the current project */
+  slider.addEventListener('pointerenter', function () { hovering = true; stopAuto(); });
+  slider.addEventListener('pointerleave', function () { hovering = false; startAuto(); });
+  slider.addEventListener('focusin',  function () { focusing = true; stopAuto(); });
+  slider.addEventListener('focusout', function (e) {
+    if (!slider.contains(e.relatedTarget)) { focusing = false; startAuto(); }
+  });
+
+  /* Keyboard navigation */
+  section.addEventListener('keydown', function (e) {
+    if (locked) return;
+    if (e.key === 'ArrowLeft')  { prev(); startAuto(); }
+    else if (e.key === 'ArrowRight') { next(); startAuto(); }
+  });
+
+  /* Touch swipe — gesture only (cross-dissolve, no finger-follow translate) */
+  var tsx = 0, tsy = 0, touching = false;
+  slider.addEventListener('touchstart', function (e) {
+    var t = e.changedTouches[0]; tsx = t.clientX; tsy = t.clientY; touching = true; stopAuto();
+  }, { passive: true });
+  slider.addEventListener('touchend', function (e) {
+    if (!touching) return; touching = false;
+    var t = e.changedTouches[0], dx = t.clientX - tsx, dy = t.clientY - tsy;
+    if (!locked && Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+      if (dx < 0) next(); else prev();
+    }
+    startAuto();
+  }, { passive: true });
+
+  /* Tab visibility */
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) stopAuto(); else startAuto();
+  });
+
+  /* Only run (and keep Mahogany Row first) once the slider is on-screen */
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        inView = en.isIntersecting;
+        if (inView) startAuto(); else stopAuto();
+      });
+    }, { threshold: 0.35 });
+    io.observe(slider);
+  } else { inView = true; startAuto(); }
+
+  /* Lock hook — the Mahogany Row explore module freezes the slider while a
+     project experience is open, then releases it (same slide) on exit. */
+  window.kvfSliderLock = function (l) {
+    locked = !!l;
+    section.classList.toggle('slider-locked', locked);
+    if (locked) stopAuto(); else startAuto();
+  };
+
+  if (mqlReduce && mqlReduce.addEventListener) {
+    mqlReduce.addEventListener('change', function () { if (reduce()) stopAuto(); else startAuto(); });
+  }
+
+  render();
 })();
