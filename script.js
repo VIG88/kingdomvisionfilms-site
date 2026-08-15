@@ -858,194 +858,186 @@
 
 
 /* ═══════════════════════════════════════════════════════════════
-   IN DEVELOPMENT — Mahogany Row motion experience
-   Self-contained module. The homepage video engine above exposes
-   window.kvfDuckHomepageAudio() so this module can take sole audio
-   ownership while the motion banner plays.
-
-   Flow:  card (key art) → EXPLORE PROJECT → motion banner opens.
-   The banner streams from R2, loops natively (no hard-cut re-seek —
-   the browser handles the loop from the media's own duration), and
-   attempts to start WITH the theme music from the click gesture,
-   falling back to muted + a subtle SOUND control if the browser
-   blocks audible autoplay.
+   IN DEVELOPMENT — project experience controller (reusable)
+   One controller per ACTIVE project slide (any .dev-slide whose
+   .slate contains a .slate-video motion banner). Mahogany Row and
+   Love Fever share this exact logic — no per-project special cases.
+   Both projects embed their theme audio in the MP4 itself: the
+   EXPLORE gesture drives a single unmuted video.play() attempt, with
+   a muted fallback + subtle SOUND control if the browser blocks it.
+   The homepage engine (window.kvfDuckHomepageAudio) and the slider
+   (window.kvfSliderLock) provide site-wide audio isolation + freezing.
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
 
-  var $ = function (id) { return document.getElementById(id); };
-  var slate   = $('mr-slate');
-  var explore = $('mr-explore');
-  var detail  = $('mr-detail');
-  var section = $('projects');
-  var video   = $('mr-video');
-  var backBtn = $('mr-back');
-  var soundBtn= $('mr-sound');
-  if (!slate || !explore) return;
+  var section = document.getElementById('projects');
+  if (!section) return;
 
   var mql = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   function reducedMotion() { return !!(mql && mql.matches); }
 
-  var opened      = false;
-  var themeMuted  = true;    /* is the theme music currently muted?      */
-  var loadStarted = false;   /* has the banner begun streaming?          */
-  var unmuteArmed = false;
+  var projects = [];
 
-  /* ── Loading strategy — never fetch the banner on homepage landing ── */
-  function warmVideo() {
-    if (!video || loadStarted) return;
-    try { if (video.preload === 'none') video.preload = 'metadata'; } catch (e) {}
-  }
-  function beginStreaming() {
-    if (!video || loadStarted) return;
-    loadStarted = true;
-    try { video.preload = 'auto'; } catch (e) {}
-  }
+  function initProject(slate) {
+    var video   = slate.querySelector('.slate-video');
+    var explore = slate.querySelector('.slate-explore');
+    if (!video || !explore) return null;              /* not an active project */
+    var backBtn = slate.querySelector('.mr-back');
+    var soundBtn= slate.querySelector('.mr-sound');
+    var detail  = slate.querySelector('.slate-detail-wrap');
 
-  function revealBanner() {
-    if (video && opened && !reducedMotion()) { video.classList.add('is-playing'); }
-  }
+    var P = { opened: false, themeMuted: true, loadStarted: false, unmuteArmed: false };
 
-  function updateSoundUI() {
-    if (!soundBtn) return;
-    soundBtn.classList.toggle('is-on', !themeMuted);
-    soundBtn.classList.toggle('cue', themeMuted && opened);
-    soundBtn.setAttribute('aria-pressed', String(!themeMuted));
-    soundBtn.setAttribute('aria-label', themeMuted ? 'Enable theme music' : 'Mute theme music');
-  }
-
-  /* ── Enable the theme on the visitor's next gesture (autoplay-blocked path) ── */
-  function onNextGesture(e) {
-    if (soundBtn && soundBtn.contains(e.target)) return;
-    if (backBtn && backBtn.contains(e.target)) return;
-    disarmUnmute();
-    if (opened && video) {
-      themeMuted = false; video.muted = false; video.volume = 1;
-      if (video.paused) { video.play().catch(function () {}); }
-      revealBanner(); updateSoundUI();
+    function warm() {
+      if (P.loadStarted) return;
+      try { if (video.preload === 'none') video.preload = 'metadata'; } catch (e) {}
     }
-  }
-  function armUnmute() {
-    if (unmuteArmed) return; unmuteArmed = true;
-    document.addEventListener('pointerdown', onNextGesture, true);
-    document.addEventListener('keydown',     onNextGesture, true);
-  }
-  function disarmUnmute() {
-    if (!unmuteArmed) return; unmuteArmed = false;
-    document.removeEventListener('pointerdown', onNextGesture, true);
-    document.removeEventListener('keydown',     onNextGesture, true);
-  }
+    function beginStreaming() {
+      if (P.loadStarted) return;
+      P.loadStarted = true;
+      try { video.preload = 'auto'; } catch (e) {}
+    }
+    function reveal() { if (P.opened && !reducedMotion()) video.classList.add('is-playing'); }
 
-  /* ── Open the motion experience (called from the EXPLORE click gesture) ── */
-  function open() {
-    if (opened) return;
-    opened = true;
-    slate.classList.add('expanded');
-    explore.setAttribute('aria-expanded', 'true');
-
-    /* Audio isolation: hand sole audio ownership to Mahogany Row */
-    if (window.kvfDuckHomepageAudio) { try { window.kvfDuckHomepageAudio(true); } catch (e) {} }
-    /* Freeze the project slider on this slide while the project is open */
-    if (window.kvfSliderLock) { try { window.kvfSliderLock(true); } catch (e) {} }
-
-    if (detail) {
-      setTimeout(function () {
-        try { detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
-      }, 320);
+    function updateSoundUI() {
+      if (!soundBtn) return;
+      soundBtn.classList.toggle('is-on', !P.themeMuted);
+      soundBtn.classList.toggle('cue', P.themeMuted && P.opened);
+      soundBtn.setAttribute('aria-pressed', String(!P.themeMuted));
+      soundBtn.setAttribute('aria-label', P.themeMuted ? 'Enable theme music' : 'Mute theme music');
     }
 
-    if (backBtn) { try { backBtn.focus({ preventScroll: true }); } catch (e) { backBtn.focus(); } }
-
-    if (!video) return;
-
-    /* Reduced motion → stay on the still key art, no motion, no audio */
-    if (reducedMotion()) { themeMuted = true; updateSoundUI(); return; }
-
-    beginStreaming();
-
-    /* Attempt AUDIBLE autoplay directly from this user gesture */
-    video.muted = false; video.volume = 1;
-    var p = video.play();
-    if (p && typeof p.then === 'function') {
-      p.then(function () {
-        themeMuted = false; updateSoundUI(); revealBanner();
-      }).catch(function () {
-        /* Audible autoplay blocked → play muted, invite sound, unmute on next gesture */
-        themeMuted = true; video.muted = true; video.volume = 0; updateSoundUI();
-        video.play().then(revealBanner).catch(function () { /* key art remains */ });
-        armUnmute();
-      });
-    } else {
-      themeMuted = !!video.muted; updateSoundUI(); revealBanner();
+    function onNextGesture(e) {
+      if (soundBtn && soundBtn.contains(e.target)) return;
+      if (backBtn && backBtn.contains(e.target)) return;
+      disarm();
+      if (P.opened) {
+        P.themeMuted = false; video.muted = false; video.volume = 1;
+        if (video.paused) video.play().catch(function () {});
+        reveal(); updateSoundUI();
+      }
     }
-  }
+    function arm() {
+      if (P.unmuteArmed) return; P.unmuteArmed = true;
+      document.addEventListener('pointerdown', onNextGesture, true);
+      document.addEventListener('keydown',     onNextGesture, true);
+    }
+    function disarm() {
+      if (!P.unmuteArmed) return; P.unmuteArmed = false;
+      document.removeEventListener('pointerdown', onNextGesture, true);
+      document.removeEventListener('keydown',     onNextGesture, true);
+    }
 
-  /* ── Return to IN DEVELOPMENT ── */
-  function close() {
-    if (!opened) return;
-    opened = false;
-    slate.classList.remove('expanded');
-    explore.setAttribute('aria-expanded', 'false');
-    disarmUnmute();
+    function open() {
+      if (P.opened) return;
+      /* only one project experience owns the screen/audio at a time */
+      projects.forEach(function (o) { if (o !== P && o.opened) o.close(); });
+      P.opened = true;
+      slate.classList.add('expanded');
+      explore.setAttribute('aria-expanded', 'true');
 
-    if (video) {
+      /* Site-wide audio isolation + freeze the slider on this slide */
+      if (window.kvfDuckHomepageAudio) { try { window.kvfDuckHomepageAudio(true); } catch (e) {} }
+      if (window.kvfSliderLock)        { try { window.kvfSliderLock(true); } catch (e) {} }
+
+      if (detail) {
+        setTimeout(function () {
+          try { detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
+        }, 320);
+      }
+      if (backBtn) { try { backBtn.focus({ preventScroll: true }); } catch (e) { try { backBtn.focus(); } catch (e2) {} } }
+
+      /* Reduced motion → stay on the still key art, no motion, no audio */
+      if (reducedMotion()) { P.themeMuted = true; updateSoundUI(); return; }
+
+      beginStreaming();
+
+      /* Attempt AUDIBLE autoplay directly from this user gesture */
+      video.muted = false; video.volume = 1;
+      var pr = video.play();
+      if (pr && typeof pr.then === 'function') {
+        pr.then(function () {
+          P.themeMuted = false; updateSoundUI(); reveal();
+        }).catch(function () {
+          /* Audible autoplay blocked → play muted, invite sound, unmute on next gesture */
+          P.themeMuted = true; video.muted = true; video.volume = 0; updateSoundUI();
+          video.play().then(reveal).catch(function () { /* key art remains */ });
+          arm();
+        });
+      } else {
+        P.themeMuted = !!video.muted; updateSoundUI(); reveal();
+      }
+    }
+
+    function close() {
+      if (!P.opened) return;
+      P.opened = false;
+      slate.classList.remove('expanded');
+      explore.setAttribute('aria-expanded', 'false');
+      disarm();
+
       video.classList.remove('is-playing');
       try { video.pause(); } catch (e) {}
       try { video.muted = true; video.volume = 0; } catch (e) {}
-      try { video.currentTime = 0; } catch (e) {}
+      try { video.currentTime = 0; } catch (e) {}   /* reopen = fresh experience */
+      P.themeMuted = true; updateSoundUI();
+
+      if (window.kvfDuckHomepageAudio) { try { window.kvfDuckHomepageAudio(false); } catch (e) {} }
+      if (window.kvfSliderLock)        { try { window.kvfSliderLock(false); } catch (e) {} }
+      try { explore.focus({ preventScroll: true }); } catch (e) {}
     }
-    themeMuted = true; updateSoundUI();
 
-    /* Restore the homepage soundtrack to its prior state */
-    if (window.kvfDuckHomepageAudio) { try { window.kvfDuckHomepageAudio(false); } catch (e) {} }
-    /* Return control to the slider (resumes on the slide we entered from) */
-    if (window.kvfSliderLock) { try { window.kvfSliderLock(false); } catch (e) {} }
-    try { explore.focus({ preventScroll: true }); } catch (e) {}
-  }
-
-  /* ── Theme sound toggle ── */
-  function toggleSound() {
-    if (!video) return;
-    themeMuted = !themeMuted;
-    video.muted = themeMuted;
-    video.volume = themeMuted ? 0 : 1;
-    if (!themeMuted) {
-      disarmUnmute();
-      if (video.paused) { video.play().catch(function () {}); }
-      revealBanner();
+    function toggleSound() {
+      P.themeMuted = !P.themeMuted;
+      video.muted = P.themeMuted; video.volume = P.themeMuted ? 0 : 1;
+      if (!P.themeMuted) { disarm(); if (video.paused) video.play().catch(function () {}); reveal(); }
+      updateSoundUI();
     }
-    updateSoundUI();
+
+    P.close = close;
+    P.warm  = warm;
+
+    explore.addEventListener('click', open);
+    explore.addEventListener('pointerenter', warm);
+    explore.addEventListener('focus', warm);
+    if (backBtn)  backBtn.addEventListener('click', close);
+    if (soundBtn) soundBtn.addEventListener('click', toggleSound);
+    video.addEventListener('loadeddata', reveal);
+    video.addEventListener('playing',    reveal);
+    video.addEventListener('error', function () { video.classList.remove('is-playing'); });
+
+    return P;
   }
 
-  /* ── Wire up ── */
-  explore.addEventListener('click', open);
-  if (backBtn)  backBtn.addEventListener('click', close);
-  if (soundBtn) soundBtn.addEventListener('click', toggleSound);
-  explore.addEventListener('pointerenter', warmVideo);
-  explore.addEventListener('focus', warmVideo);
-
-  if (video) {
-    video.addEventListener('loadeddata', revealBanner);
-    video.addEventListener('playing',    revealBanner);
-    video.addEventListener('error', function () { if (video) video.classList.remove('is-playing'); });
-  }
-
-  document.addEventListener('keydown', function (e) {
-    if (opened && (e.key === 'Escape' || e.key === 'Esc')) { close(); }
+  /* Wire every active-project slide (a slide whose .slate has a motion banner) */
+  [].forEach.call(section.querySelectorAll('.dev-slide .slate'), function (slate) {
+    var p = initProject(slate);
+    if (p) projects.push(p);
   });
 
-  /* ── Soft cinematic entrance + warm the banner as the section approaches ── */
-  if (section) {
-    if ('IntersectionObserver' in window) {
-      var io = new IntersectionObserver(function (entries) {
-        entries.forEach(function (e) {
-          if (e.isIntersecting) { section.classList.add('in-view'); warmVideo(); io.disconnect(); }
-        });
-      }, { threshold: 0.12 });
-      io.observe(section);
-    } else {
-      section.classList.add('in-view'); warmVideo();
+  /* Esc closes whichever project is open */
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' || e.key === 'Esc') {
+      projects.forEach(function (p) { if (p.opened) p.close(); });
     }
+  });
+
+  /* Soft cinematic entrance + warm the active banners as the section approaches */
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          section.classList.add('in-view');
+          projects.forEach(function (p) { p.warm(); });
+          io.disconnect();
+        }
+      });
+    }, { threshold: 0.12 });
+    io.observe(section);
+  } else {
+    section.classList.add('in-view');
+    projects.forEach(function (p) { p.warm(); });
   }
 })();
 

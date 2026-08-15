@@ -1244,3 +1244,14 @@ body.intro-active { overflow: hidden; }
   .dev-slide { transition: opacity 0.28s ease, visibility 0s linear 0.28s; }
   .dev-slide.is-active { transition: opacity 0.28s ease; }
 }
+
+
+/* Screen-reader-only text (e.g. a project title/tagline that lives inside its
+   supplied key art, kept accessible without duplicating it on screen). */
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0);
+  white-space: nowrap; border: 0;
+}
