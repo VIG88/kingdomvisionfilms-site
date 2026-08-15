@@ -25,6 +25,7 @@
 html {
   font-size: 16px;
   scroll-behavior: smooth;
+  height: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -33,7 +34,11 @@ body {
   background: var(--black);
   color: var(--gold);
   font-family: 'Montserrat', sans-serif;
-  overflow-x: hidden;
+  /* Fixed cinematic view architecture: the document itself never scrolls —
+     navigation switches full-screen view states, and any view that needs
+     more room scrolls INTERNALLY (see .kvf-view). No page-level scrollbars. */
+  height: 100%;
+  overflow: hidden;
 }
 
 ::selection {
@@ -622,13 +627,11 @@ body.intro-active { overflow: hidden; }
 }
 
 
-/* Scrollable anchor sections */
+/* Anchor sections are now fixed cinematic view states (see .kvf-view).
+   They no longer flow down the document, so the page never grows tall. */
 .anchor-section {
-  position: relative; z-index: 10;
-  min-height: 80vh;
   display: flex; align-items: center; justify-content: center;
   border-top: 1px solid rgba(201,168,76,0.04);
-  margin-top: 100vh;
 }
 .section-label {
   font-family: 'Cinzel', serif;
@@ -637,10 +640,75 @@ body.intro-active { overflow: hidden; }
   color: rgba(201,168,76,0.10);
 }
 
-/* Footer */
+/* Footer — pinned to the bottom of the HOME view only (fixed views mean it
+   can no longer live at the end of a scrolling document). */
 #site-footer {
-  position: relative; z-index: 10;
-  padding: 0 64px 48px;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  padding: 0 64px 34px;
+  pointer-events: none;
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.6s ease, visibility 0s linear 0.6s;
+}
+body[data-view="home"] #site-footer,
+body:not([data-view]) #site-footer {
+  opacity: 1; visibility: visible;
+  transition: opacity 0.6s ease;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   FIXED VIEW SYSTEM
+   ABOUT / IN DEVELOPMENT / FILMS / CONTACT are full-screen view states
+   layered in the same space over the persistent cinematic backdrop.
+   Navigation cross-dissolves between them (~600ms); exactly one is active
+   at a time. The page never scrolls — a view whose content exceeds the
+   viewport scrolls internally, so there is never a page-level scrollbar.
+   ═══════════════════════════════════════════════════════════════ */
+.kvf-view {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  /* GPU-compositing the cross-dissolve keeps it smooth despite the
+     continuous grain / particle canvas work on the main thread. */
+  will-change: opacity;
+  transition: opacity 0.6s ease, visibility 0s linear 0.6s;
+}
+.kvf-view.is-view-active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 0.6s ease;
+}
+
+/* HOME (hero) is the default view; it fades out while another view is active. */
+#hero-section {
+  will-change: opacity;
+  transition: opacity 0.6s ease, visibility 0s linear 0.6s;
+}
+body[data-view="about"]      #hero-section,
+body[data-view="projects"]   #hero-section,
+body[data-view="films"]      #hero-section,
+body[data-view="contact"]    #hero-section,
+body[data-view="television"] #hero-section {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Active nav item */
+#main-nav a.is-current { color: var(--gold-light); }
+
+@media (prefers-reduced-motion: reduce) {
+  .kvf-view, .kvf-view.is-view-active,
+  #hero-section, #site-footer {
+    transition: opacity 0.01s linear, visibility 0s;
+  }
 }
 .footer-line {
   width: 100%; height: 1px;
@@ -862,17 +930,22 @@ body.intro-active { overflow: hidden; }
    affect the homepage hero / intro / background-video system.
    ═══════════════════════════════════════════════════════════════ */
 #projects.dev-section {
-  position: relative;
+  position: fixed;
+  inset: 0;
   z-index: 10;
-  margin-top: 100vh;                 /* same scroll rhythm as sibling sections */
-  min-height: 100vh;
-  padding: clamp(64px, 10vh, 148px) 0 clamp(72px, 12vh, 168px);
+  margin-top: 0;
+  min-height: 0;
+  padding: clamp(56px, 9vh, 132px) 0 clamp(56px, 9vh, 120px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(40px, 6vh, 92px);
+  justify-content: safe center;      /* centre when it fits; scroll from top if not */
+  gap: clamp(28px, 4vh, 64px);
   border: 0;
-  overflow: hidden;
+  /* Horizontal drift from the project slider stays clipped; vertical content
+     that can't fit scrolls INSIDE this view — never the page. */
+  overflow-x: hidden;
+  overflow-y: auto;
   isolation: isolate;
   background:
     radial-gradient(130% 62% at 50% 26%, rgba(122,80,20,0.07) 0%, transparent 58%),

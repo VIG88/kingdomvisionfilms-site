@@ -840,29 +840,10 @@
     });
   });
 
-  document.querySelectorAll('a[href^="#"]').forEach(function (a) {
-    a.addEventListener('click', function (e) {
-      var href = a.getAttribute('href');
-      /* Any in-page navigation closes an open IN DEVELOPMENT project first,
-         via the single shared cleanup path — stopping every project's motion
-         banner + embedded/theme audio before the visitor moves. This covers
-         ABOUT / FILMS / CONTACT / homepage AND clicking IN DEVELOPMENT itself
-         while a project is expanded (which returns the visitor to the slider).
-         With nothing open it is a harmless no-op. */
-      if (window.kvfCloseActiveProjects) {
-        try { window.kvfCloseActiveProjects(); } catch (err) {}
-      }
-      var t = document.querySelector(href);
-      if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-    });
-  });
-
-  if (scrollCue) {
-    scrollCue.addEventListener('click', function () {
-      var s = $('about');
-      if (s) s.scrollIntoView({ behavior: 'smooth' });
-    });
-  }
+  /* In-page navigation (the four nav links + the hero scroll cue) is handled
+     by the FIXED VIEW ROUTER at the end of this file: it switches the active
+     full-screen view instead of scrolling the document, and routes every
+     switch through the shared project-audio cleanup. No smooth-scroll here. */
 
 })();
 
@@ -1208,16 +1189,14 @@
     if (document.hidden) stopAuto(); else startAuto();
   });
 
-  /* Only run (and keep Mahogany Row first) once the slider is on-screen */
-  if ('IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        inView = en.isIntersecting;
-        if (inView) startAuto(); else stopAuto();
-      });
-    }, { threshold: 0.35 });
-    io.observe(slider);
-  } else { inView = true; startAuto(); }
+  /* Auto-advance is gated on IN DEVELOPMENT being the ACTIVE fixed view.
+     The section is always present in the fixed-view layout, so an
+     IntersectionObserver can't distinguish active from hidden — the view
+     router drives this hook instead. IN DEVELOPMENT is the only auto-slider. */
+  window.kvfDevSliderActivate = function (active) {
+    inView = !!active;
+    if (inView) startAuto(); else stopAuto();
+  };
 
   /* Lock hook — the Mahogany Row explore module freezes the slider while a
      project experience is open, then releases it (same slide) on exit. */
@@ -1232,4 +1211,92 @@
   }
 
   render();
+})();
+
+
+/* ═══════════════════════════════════════════════════════════════
+   FIXED VIEW ROUTER
+   Navigation switches between full-screen view STATES (HOME / ABOUT /
+   IN DEVELOPMENT / FILMS / CONTACT) with a ~600ms cross-dissolve — the
+   document never scrolls to an anchor, so there is no page-level scrollbar.
+   Every switch first runs the shared project-audio cleanup, so no project
+   soundtrack can survive leaving a view. HOME is the default state, and
+   re-selecting the section you're already in returns you HOME.
+   ═══════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  var body = document.body;
+
+  var VIEWS = {
+    about:    document.getElementById('about'),
+    projects: document.getElementById('projects'),
+    films:    document.getElementById('films'),
+    contact:  document.getElementById('contact')
+  };
+  var navLinks = [].slice.call(document.querySelectorAll('#main-nav a[href^="#"]'));
+
+  function nameFromHref(href) { return (href || '').replace(/^#/, ''); }
+
+  function setActiveNav(view) {
+    navLinks.forEach(function (a) {
+      var on = nameFromHref(a.getAttribute('href')) === view;
+      a.classList.toggle('is-current', on);
+      if (on) a.setAttribute('aria-current', 'page');
+      else    a.removeAttribute('aria-current');
+    });
+  }
+
+  function showView(view) {
+    if (!VIEWS[view]) view = 'home';
+
+    /* 1. Stop any open project experience + its audio before switching. */
+    if (window.kvfCloseActiveProjects) {
+      try { window.kvfCloseActiveProjects(); } catch (e) {}
+    }
+
+    /* 2. Toggle the section views (none active on HOME). */
+    Object.keys(VIEWS).forEach(function (name) {
+      var el = VIEWS[name];
+      if (!el) return;
+      var on = (name === view);
+      el.classList.toggle('is-view-active', on);
+      if (on) { try { el.scrollTop = 0; } catch (e) {} }
+    });
+
+    /* 3. Body state drives the HOME hero + footer visibility. */
+    body.setAttribute('data-view', view);
+
+    /* 4. Reflect the active section in the navigation. */
+    setActiveNav(view === 'home' ? '' : view);
+
+    /* 5. IN DEVELOPMENT is the only auto-advancing view. */
+    if (window.kvfDevSliderActivate) {
+      try { window.kvfDevSliderActivate(view === 'projects'); } catch (e) {}
+    }
+
+    /* 6. Land keyboard focus inside the newly shown view. */
+    if (view !== 'home' && VIEWS[view]) {
+      var viewEl = VIEWS[view];
+      try { viewEl.setAttribute('tabindex', '-1'); viewEl.focus({ preventScroll: true }); }
+      catch (e) { try { viewEl.focus(); } catch (e2) {} }
+    }
+  }
+  window.kvfShowView = showView;
+
+  /* Nav links → switch view (re-selecting the active section returns HOME). */
+  navLinks.forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      var target  = nameFromHref(a.getAttribute('href'));
+      var current = body.getAttribute('data-view');
+      showView(current === target ? 'home' : target);
+    });
+  });
+
+  /* Hero scroll cue → enter ABOUT. */
+  var cue = document.getElementById('scroll-cue');
+  if (cue) cue.addEventListener('click', function () { showView('about'); });
+
+  /* Default state: HOME. */
+  showView('home');
 })();
