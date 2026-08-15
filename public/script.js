@@ -842,7 +842,15 @@
 
   document.querySelectorAll('a[href^="#"]').forEach(function (a) {
     a.addEventListener('click', function (e) {
-      var t = document.querySelector(a.getAttribute('href'));
+      var href = a.getAttribute('href');
+      /* Leaving IN DEVELOPMENT for another primary section (ABOUT / FILMS /
+         CONTACT / anywhere but #projects) → stop ALL active project media
+         first via the shared cleanup path, then navigate. Staying within
+         #projects (the "In Development" link itself) must NOT close it. */
+      if (href !== '#projects' && window.kvfCloseActiveProjects) {
+        try { window.kvfCloseActiveProjects(); } catch (err) {}
+      }
+      var t = document.querySelector(href);
       if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     });
   });
@@ -1016,12 +1024,38 @@
     if (p) projects.push(p);
   });
 
+  /* ── Single reusable media-stop path ──────────────────────────────
+     Closes every open project experience. close() pauses the motion
+     banner, stops its embedded audio, resets playback, releases the
+     homepage audio isolation, unlocks the slider, and disarms any pending
+     unmute — so this covers Love Fever, Mahogany Row, and every future
+     IN DEVELOPMENT project with no per-project logic. Exposed on window so
+     the navigation controller (and any exit path) can guarantee no project
+     soundtrack survives leaving the section. */
+  function closeAllProjects() {
+    projects.forEach(function (p) { if (p.opened) p.close(); });
+  }
+  window.kvfCloseActiveProjects = closeAllProjects;
+
   /* Esc closes whichever project is open */
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' || e.key === 'Esc') {
-      projects.forEach(function (p) { if (p.opened) p.close(); });
+      closeAllProjects();
     }
   });
+
+  /* Section-level exit safety net: if the whole IN DEVELOPMENT section
+     leaves the viewport while project media is active — manual scroll-away,
+     rapid or mobile navigation, an interrupted transition — stop it too, so
+     cleanup never depends solely on how the visitor left. */
+  if ('IntersectionObserver' in window) {
+    var exitIo = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) closeAllProjects();
+      });
+    }, { threshold: 0 });
+    exitIo.observe(section);
+  }
 
   /* Soft cinematic entrance + warm the active banners as the section approaches */
   if ('IntersectionObserver' in window) {
