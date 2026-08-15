@@ -152,17 +152,15 @@
     </div>
   </main>
 
-  <!-- Spacer so the fixed hero section has scroll room -->
-  <div style="height:100vh" aria-hidden="true"></div>
-
-  <!-- Scrollable anchor sections -->
-  <section id="about"      class="anchor-section"></section>
+  <!-- Fixed cinematic view states — navigation switches the active view;
+       the page itself never scrolls. -->
+  <section id="about" class="anchor-section kvf-view" aria-label="About"><span class="section-label">About</span></section>
   <!-- ═══════════════════════════════════════════════════════════
        IN DEVELOPMENT — cinematic development slate (Phase 1: Mahogany Row)
        Nav "IN DEVELOPMENT" → #projects. Self-contained section; does not
        touch the homepage hero / video system.
   ═══════════════════════════════════════════════════════════════ -->
-  <section id="projects" class="dev-section" aria-label="In Development">
+  <section id="projects" class="dev-section kvf-view" aria-label="In Development">
 
     <div class="dev-intro dev-reveal">
       <p class="dev-eyebrow">Kingdom Vision Films</p>
@@ -359,9 +357,9 @@
     </div>
 
   </section>
-  <section id="films"      class="anchor-section"><span class="section-label">Films</span></section>
-  <section id="television" class="anchor-section"><span class="section-label">Television</span></section>
-  <section id="contact"    class="anchor-section"><span class="section-label">Contact</span></section>
+  <section id="films"      class="anchor-section kvf-view" aria-label="Films"><span class="section-label">Films</span></section>
+  <section id="television" class="anchor-section kvf-view" aria-label="Television"><span class="section-label">Television</span></section>
+  <section id="contact"    class="anchor-section kvf-view" aria-label="Contact"><span class="section-label">Contact</span></section>
 
   <footer id="site-footer" role="contentinfo">
     <div class="footer-line"></div>
