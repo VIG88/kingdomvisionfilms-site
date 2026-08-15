@@ -843,11 +843,13 @@
   document.querySelectorAll('a[href^="#"]').forEach(function (a) {
     a.addEventListener('click', function (e) {
       var href = a.getAttribute('href');
-      /* Leaving IN DEVELOPMENT for another primary section (ABOUT / FILMS /
-         CONTACT / anywhere but #projects) → stop ALL active project media
-         first via the shared cleanup path, then navigate. Staying within
-         #projects (the "In Development" link itself) must NOT close it. */
-      if (href !== '#projects' && window.kvfCloseActiveProjects) {
+      /* Any in-page navigation closes an open IN DEVELOPMENT project first,
+         via the single shared cleanup path — stopping every project's motion
+         banner + embedded/theme audio before the visitor moves. This covers
+         ABOUT / FILMS / CONTACT / homepage AND clicking IN DEVELOPMENT itself
+         while a project is expanded (which returns the visitor to the slider).
+         With nothing open it is a harmless no-op. */
+      if (window.kvfCloseActiveProjects) {
         try { window.kvfCloseActiveProjects(); } catch (err) {}
       }
       var t = document.querySelector(href);
@@ -1106,18 +1108,57 @@
 
   function pad(n) { return (n < 10 ? '0' : '') + n; }
 
-  function render() {
+  var OFFSET = 46;        /* px of restrained lateral drift per transition */
+  var pendingRaf = null;  /* guards the settle-frame against rapid navigation */
+
+  function render(dir) {
+    dir = dir || 0;
+    if (pendingRaf) { cancelAnimationFrame(pendingRaf); pendingRaf = null; }
+
     slides.forEach(function (s, k) {
-      var on = (k === idx);
-      s.classList.toggle('is-active', on);
-      s.setAttribute('aria-hidden', on ? 'false' : 'true');
+      s.setAttribute('aria-hidden', (k === idx) ? 'false' : 'true');
     });
+
+    if (dir === 0 || reduce()) {
+      /* Initial paint or reduced motion → straight crossfade, no lateral drift */
+      slides.forEach(function (s, k) {
+        s.style.transform = '';
+        s.classList.toggle('is-active', k === idx);
+      });
+    } else {
+      var incoming = slides[idx];
+      /* Outgoing (currently active) slide drifts out opposite the travel dir
+         while it fades — its transition is already live, so setting the target
+         offset animates it. Every other slide rests centred and hidden. */
+      slides.forEach(function (s, k) {
+        if (k === idx) return;
+        s.style.transform = s.classList.contains('is-active')
+          ? 'translateX(' + (dir > 0 ? -OFFSET : OFFSET) + 'px)'
+          : 'translateX(0)';
+        s.classList.remove('is-active');
+      });
+      /* Incoming enters from the travel direction, then settles to centre —
+         one project dominant at a time, slow lateral drift + opacity crossfade.
+         The start offset is applied with the transition momentarily disabled
+         (a FLIP) so it doesn't animate into place; the drift-to-centre then
+         animates on the next frame while opacity crossfades via .is-active. */
+      incoming.style.transition = 'none';
+      incoming.style.transform = 'translateX(' + (dir > 0 ? OFFSET : -OFFSET) + 'px)';
+      void incoming.offsetWidth;                   /* commit offset instantly  */
+      incoming.style.transition = '';              /* restore CSS transitions  */
+      incoming.classList.add('is-active');          /* opacity 0 → 1 crossfade  */
+      pendingRaf = requestAnimationFrame(function () {
+        pendingRaf = null;
+        incoming.style.transform = 'translateX(0)'; /* drift 46px → centre      */
+      });
+    }
+
     if (curEl) curEl.textContent = pad(idx + 1);
     if (totEl) totEl.textContent = pad(slides.length);
   }
-  function go(i) { idx = (i + slides.length) % slides.length; render(); }
-  function next() { go(idx + 1); }
-  function prev() { go(idx - 1); }
+  function go(i, dir) { idx = (i + slides.length) % slides.length; render(dir); }
+  function next() { go(idx + 1, 1); }
+  function prev() { go(idx - 1, -1); }
 
   function canAuto() {
     return inView && !hovering && !focusing && !locked && !document.hidden && !reduce();

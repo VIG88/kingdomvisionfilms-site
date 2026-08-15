@@ -1179,13 +1179,23 @@ body.intro-active { overflow: hidden; }
   min-width: 0;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 1.15s ease, visibility 0s linear 1.15s;
+  transform: translateX(0);
+  /* Cinematic single-project transition: slow lateral drift + opacity
+     crossfade. One project is dominant at a time (slides are stacked in the
+     same grid cell); the drift is clipped by #projects' overflow:hidden so it
+     never causes horizontal body scroll. */
+  transition: opacity 1.05s ease,
+              transform 1.05s cubic-bezier(0.22, 0.61, 0.36, 1),
+              visibility 0s linear 1.05s;
   pointer-events: none;
+  will-change: opacity, transform;
 }
 .dev-slide.is-active {
   opacity: 1;
   visibility: visible;
-  transition: opacity 1.15s ease;
+  transform: translateX(0);
+  transition: opacity 1.05s ease,
+              transform 1.05s cubic-bezier(0.22, 0.61, 0.36, 1);
   pointer-events: auto;
 }
 /* The slate fills the slider cell (the slider owns the max-width now) */
@@ -1241,8 +1251,8 @@ body.intro-active { overflow: hidden; }
 
 /* Reduced motion: shorten the cross-dissolve (auto-advance is disabled in JS) */
 @media (prefers-reduced-motion: reduce) {
-  .dev-slide { transition: opacity 0.28s ease, visibility 0s linear 0.28s; }
-  .dev-slide.is-active { transition: opacity 0.28s ease; }
+  .dev-slide { transition: opacity 0.28s ease, visibility 0s linear 0.28s; transform: none; }
+  .dev-slide.is-active { transition: opacity 0.28s ease; transform: none; }
 }
 
 
