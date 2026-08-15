@@ -272,16 +272,67 @@
       </article>
     </div>
 
-    <div class="dev-slide dev-slide-soon" data-project="love-fever" aria-hidden="true"
+    <!-- Slide 04 — Love Fever (active property; theme audio embedded in the motion banner) -->
+    <div class="dev-slide" data-project="love-fever"
          role="group" aria-roledescription="slide" aria-label="Slide 4 of 5: Love Fever">
-      <article class="slate slate-soon">
+      <article class="slate dev-reveal" aria-labelledby="lf-title">
+
         <div class="slate-frame">
-          <div class="slate-media"><div class="slate-vignette" aria-hidden="true"></div></div>
+          <div class="slate-media">
+            <!-- Supplied key art (already carries the Love Fever title + tagline) -->
+            <div class="slate-media-img" role="img" aria-label="Love Fever key art"
+                 style="background-image:url('https://media.kingdomvisionfilms.com/love-fever/love-fever-keyart.png')"></div>
+            <!-- Motion banner (theme music embedded in the MP4) — streams from R2, lazy-loaded -->
+            <video class="slate-video" playsinline muted loop preload="none"
+                   disablepictureinpicture disableremoteplayback
+                   poster="https://media.kingdomvisionfilms.com/love-fever/love-fever-keyart.png"
+                   aria-label="Love Fever motion banner">
+              <source src="https://media.kingdomvisionfilms.com/love-fever/motion-banner%20-love-fever.MP4" type="video/mp4" />
+            </video>
+            <div class="slate-scrim" aria-hidden="true"></div>
+            <div class="slate-vignette" aria-hidden="true"></div>
+
+            <div class="mr-controls">
+              <button class="mr-back" type="button">
+                <span class="mr-back-arrow" aria-hidden="true">←</span>
+                <span>In&nbsp;Development</span>
+              </button>
+              <button class="mr-sound" type="button" aria-pressed="false" aria-label="Enable theme music">
+                <span class="mr-sound-ico" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path class="mr-spk" d="M4 9.3H7L11 5.7V18.3L7 14.7H4V9.3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+                    <path class="mr-wave1" d="M14.4 9.1C15.6 10.3 15.6 13.7 14.4 14.9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                    <path class="mr-wave2" d="M16.9 6.9C18.9 8.9 18.9 15.1 16.9 17.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                    <line class="mr-slash" x1="14" y1="7.5" x2="19.2" y2="16.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                  </svg>
+                </span>
+                <span class="mr-sound-label">Sound</span>
+              </button>
+            </div>
+          </div>
+
           <div class="slate-lead">
-            <h3 class="slate-title">Love Fever</h3>
-            <p class="slate-soon-note">Coming Soon</p>
+            <!-- The supplied key art already carries the Love Fever title + poster
+                 tagline, so they are kept as screen-reader text (not duplicated visually). -->
+            <h3 id="lf-title" class="slate-title sr-only">Love Fever</h3>
+            <p class="slate-tagline sr-only">Two people discover the Power within that only Love can bring out.</p>
+            <button class="slate-explore" type="button" aria-expanded="false" aria-controls="lf-detail">
+              <span class="slate-explore-label">Explore Project</span>
+              <span class="slate-explore-arrow" aria-hidden="true">→</span>
+            </button>
           </div>
         </div>
+
+        <div id="lf-detail" class="slate-detail-wrap" role="region" aria-label="Love Fever details">
+          <div class="slate-detail">
+            <div class="slate-detail-inner">
+              <div class="slate-synopsis">
+                <p>When the woman he loves is taken by the most feared man in town, a timid young man must become someone he never knew he could be; proving that love can awaken a courage stronger than fear.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </article>
     </div>
 
