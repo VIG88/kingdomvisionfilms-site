@@ -124,7 +124,11 @@
   }
 
   function applyMuteState(muted) {
-    if (introVideo) { introVideo.muted = muted; introVideo.volume = muted ? 0 : 1; }
+    /* Before the transition, this governs the intro (initial state +
+       first-interaction unmute). Once the intro is transitioning away, the
+       homepage background video owns the audio, so we leave the intro muted
+       here — its embedded track must never resume or overlap the handoff. */
+    if (introVideo && !transitionStarted) { introVideo.muted = muted; introVideo.volume = muted ? 0 : 1; }
     /* Only the ACTIVE (visible) background video carries audio. The idle
        one is always kept muted so the two in-sync loop videos can never
        produce doubled/flanged audio during the dual-video crossfade. */
@@ -177,6 +181,11 @@
 
   setSoundIcon(true);
   applyMuteState(true);
+  /* The intro attempts AUDIBLE autoplay of its embedded track, so it must not
+     be pre-muted — otherwise the browser's autoplay would start it muted before
+     tryPlayIntro runs, masking whether audible playback is actually allowed.
+     (Background videos are muted independently during preload.) */
+  if (introVideo) { introVideo.muted = false; introVideo.volume = 1; }
 
 
   /* ══════════════════════════════════════════════════════════════
@@ -388,13 +397,34 @@
     introStarted = true;
     introLoader.classList.add('hidden');
     introVideo.classList.add('playing');
+
+    /* Attempt AUDIBLE autoplay of the intro's OWN embedded audio track —
+       no separate soundtrack, just the MP4's own sound with audio enabled. */
+    introVideo.muted = false;
+    introVideo.volume = 1;
     var p = introVideo.play();
     if (p && typeof p.then === 'function') {
       p.then(function () {
+        /* Browser allowed audible autoplay → embedded intro audio is ON. */
         videoStarted = true;
-        kvfLog('Intro video playing');
+        isMuted = false;
+        setSoundIcon(false);
+        kvfLog('Intro video playing — embedded audio ON');
       }).catch(function () {
-        introVideo.classList.remove('playing');
+        /* Browser blocked unmuted autoplay. Play the SAME video muted so the
+           intro never fails — a policy fallback, NOT a saved preference. The
+           already-armed first-interaction listener unmutes the embedded audio
+           on the visitor's first click / tap / key press. */
+        isMuted = true;
+        introVideo.muted = true;
+        introVideo.volume = 0;
+        setSoundIcon(true);
+        introVideo.play().then(function () {
+          videoStarted = true;
+          kvfLog('Intro video playing muted (autoplay policy) — awaiting first interaction');
+        }).catch(function () {
+          introVideo.classList.remove('playing');
+        });
       });
     } else {
       videoStarted = true;
@@ -622,6 +652,12 @@
     transitionStarted = true;
     clearTimeout(stallTimer);
     kvfLog('beginCrossfade triggered at t=' + (introVideo.currentTime || 0).toFixed(2) + 's');
+
+    /* Stop the intro's embedded audio the instant it starts transitioning out,
+       so it can't overlap the homepage background video — a single audio source
+       through the handoff. (applyMuteState now leaves the intro alone once
+       transitionStarted, so this stays muted; the intro is paused shortly after.) */
+    try { introVideo.muted = true; introVideo.volume = 0; } catch (e) {}
 
     if (bgFallbackApplied) {
       /* BG already in fallback state — just fade intro out */

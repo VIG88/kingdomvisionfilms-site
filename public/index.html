@@ -29,10 +29,12 @@
 ═══════════════════════════════════════════════════════════ -->
 <div id="intro-screen" role="presentation" aria-hidden="true">
 
+  <!-- No `muted` attribute: the intro attempts AUDIBLE autoplay of its own
+       embedded audio track (see tryPlayIntro), falling back to muted only if
+       the browser blocks it. -->
   <video
     id="intro-video"
     autoplay
-    muted
     playsinline
     preload="auto"
     poster="./assets/kvf-intro-poster.jpg"
