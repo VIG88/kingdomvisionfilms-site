@@ -1168,12 +1168,40 @@ body[data-view="television"] #hero-section {
   position: absolute; z-index: 6;
   bottom: clamp(16px, 2.4vw, 34px);
   left: clamp(16px, 2.6vw, 44px);
-  right: auto;
-  display: flex; align-items: center; gap: clamp(12px, 1.2vw, 18px);
+  right: clamp(16px, 2.6vw, 44px);
+  display: flex; align-items: center; flex-wrap: wrap; gap: clamp(12px, 1.2vw, 18px);
   opacity: 0; transform: translateY(8px);
   transition: opacity 0.6s ease 0.15s, transform 0.6s ease 0.15s;
   pointer-events: none;
 }
+/* The expanded motion-project slider nav sits at the right of the control row
+   (opposite ← / SOUND) — subtle gold chevrons + position, KVF pill language. */
+.mr-slidenav {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: clamp(6px, 0.7vw, 11px);
+  background: rgba(6,5,4,0.42);
+  border: 1px solid rgba(201,168,76,0.28);
+  border-radius: 999px;
+  padding: 5px 12px;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.mr-slidenav-btn {
+  appearance: none; -webkit-appearance: none; background: none; border: 0; cursor: pointer;
+  color: rgba(201,168,76,0.62);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(18px, 1.5vw, 24px); line-height: 1; padding: 0 4px;
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+.mr-slidenav-btn:hover, .mr-slidenav-btn:focus-visible { color: var(--gold-light); outline: none; }
+.mr-slidenav-prev:hover { transform: translateX(-2px); }
+.mr-slidenav-next:hover { transform: translateX(2px); }
+.mr-slidenav-pos {
+  font-family: 'Montserrat', sans-serif;
+  font-size: clamp(8.5px, 0.82vw, 10.5px); font-weight: 300; letter-spacing: 0.3em;
+  color: rgba(201,168,76,0.7); min-width: 5.4em; text-align: center;
+}
+.mr-slidenav-cur { color: var(--gold-light); }
+.mr-slidenav-total { color: rgba(201,168,76,0.4); }
 .slate.expanded .mr-controls { opacity: 1; transform: none; pointer-events: none; }
 .slate.expanded .mr-controls > * { pointer-events: auto; }
 

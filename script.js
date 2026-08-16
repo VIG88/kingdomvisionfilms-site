@@ -903,8 +903,15 @@
 
   var mql = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   function reducedMotion() { return !!(mql && mql.matches); }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
 
-  var projects = [];
+  var allSlides = [].slice.call(section.querySelectorAll('.dev-slide'));
+  var projects  = [];
+
+  /* Shared project-sound preference for the EXPANDED MOTION-PROJECT SLIDER:
+     it carries across project-to-project transitions so the visitor never has
+     to re-enable sound when the expanded slider advances. */
+  var expSoundOn = false;
 
   function initProject(slate) {
     var video   = slate.querySelector('.slate-video');
@@ -912,9 +919,16 @@
     if (!video || !explore) return null;              /* not an active project */
     var backBtn = slate.querySelector('.mr-back');
     var soundBtn= slate.querySelector('.mr-sound');
+    var prevBtn = slate.querySelector('.mr-slidenav-prev');
+    var nextBtn = slate.querySelector('.mr-slidenav-next');
+    var curEl   = slate.querySelector('.mr-slidenav-cur');
+    var totEl   = slate.querySelector('.mr-slidenav-total');
+    var controls= slate.querySelector('.mr-controls');
     var detail  = slate.querySelector('.slate-detail-wrap');
+    var slide   = slate.closest('.dev-slide');
 
-    var P = { opened: false, themeMuted: true, loadStarted: false, unmuteArmed: false };
+    var P = { opened: false, themeMuted: true, loadStarted: false, unmuteArmed: false,
+              slideIndex: allSlides.indexOf(slide) };
 
     function warm() {
       if (P.loadStarted) return;
@@ -938,8 +952,11 @@
     function onNextGesture(e) {
       if (soundBtn && soundBtn.contains(e.target)) return;
       if (backBtn && backBtn.contains(e.target)) return;
+      if (prevBtn && prevBtn.contains(e.target)) return;
+      if (nextBtn && nextBtn.contains(e.target)) return;
       disarm();
       if (P.opened) {
+        expSoundOn = true;
         P.themeMuted = false; video.muted = false; video.volume = 1;
         if (video.paused) video.play().catch(function () {});
         reveal(); updateSoundUI();
@@ -956,49 +973,47 @@
       document.removeEventListener('keydown',     onNextGesture, true);
     }
 
-    function open() {
-      if (P.opened) return;
-      /* only one project experience owns the screen/audio at a time */
-      projects.forEach(function (o) { if (o !== P && o.opened) o.close(); });
+    /* Activate this project's MEDIA (expand slate + play banner per the shared
+       sound preference). Session-level audio isolation + key-art freeze are
+       owned by the expanded slider (below), not here — so switching projects
+       never churns the homepage duck / slider lock. */
+    function activate() {
       P.opened = true;
       slate.classList.add('expanded');
       explore.setAttribute('aria-expanded', 'true');
-
-      /* Site-wide audio isolation + freeze the slider on this slide */
-      if (window.kvfDuckHomepageAudio) { try { window.kvfDuckHomepageAudio(true); } catch (e) {} }
-      if (window.kvfSliderLock)        { try { window.kvfSliderLock(true); } catch (e) {} }
-
-      if (detail) {
-        setTimeout(function () {
-          try { detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
-        }, 320);
-      }
-      if (backBtn) { try { backBtn.focus({ preventScroll: true }); } catch (e) { try { backBtn.focus(); } catch (e2) {} } }
 
       /* Reduced motion → stay on the still key art, no motion, no audio */
       if (reducedMotion()) { P.themeMuted = true; updateSoundUI(); return; }
 
       beginStreaming();
 
-      /* Attempt AUDIBLE autoplay directly from this user gesture */
-      video.muted = false; video.volume = 1;
-      var pr = video.play();
-      if (pr && typeof pr.then === 'function') {
-        pr.then(function () {
-          P.themeMuted = false; updateSoundUI(); reveal();
-        }).catch(function () {
-          /* Audible autoplay blocked → play muted, invite sound, unmute on next gesture */
-          P.themeMuted = true; video.muted = true; video.volume = 0; updateSoundUI();
-          video.play().then(reveal).catch(function () { /* key art remains */ });
-          arm();
-        });
+      if (expSoundOn) {
+        /* Sound preference ON → attempt AUDIBLE playback (allowed once the
+           visitor's EXPLORE gesture has granted user activation). */
+        video.muted = false; video.volume = 1;
+        var pr = video.play();
+        if (pr && typeof pr.then === 'function') {
+          pr.then(function () {
+            P.themeMuted = false; updateSoundUI(); reveal();
+          }).catch(function () {
+            /* Blocked → play muted, invite sound, unmute on the next gesture */
+            P.themeMuted = true; video.muted = true; video.volume = 0; updateSoundUI();
+            video.play().then(reveal).catch(function () { /* key art remains */ });
+            arm();
+          });
+        } else {
+          P.themeMuted = !!video.muted; updateSoundUI(); reveal();
+        }
       } else {
-        P.themeMuted = !!video.muted; updateSoundUI(); reveal();
+        /* Sound preference OFF → play muted (no audible attempt, no cue-arm). */
+        P.themeMuted = true; video.muted = true; video.volume = 0; updateSoundUI();
+        video.play().then(reveal).catch(function () { /* key art remains */ });
       }
     }
 
-    function close() {
-      if (!P.opened) return;
+    /* Deactivate this project's MEDIA (stop banner + its embedded audio, reset,
+       collapse). Used both when the expanded slider moves on and on full exit. */
+    function deactivate() {
       P.opened = false;
       slate.classList.remove('expanded');
       explore.setAttribute('aria-expanded', 'false');
@@ -1007,28 +1022,28 @@
       video.classList.remove('is-playing');
       try { video.pause(); } catch (e) {}
       try { video.muted = true; video.volume = 0; } catch (e) {}
-      try { video.currentTime = 0; } catch (e) {}   /* reopen = fresh experience */
+      try { video.currentTime = 0; } catch (e) {}   /* next open = fresh */
       P.themeMuted = true; updateSoundUI();
-
-      if (window.kvfDuckHomepageAudio) { try { window.kvfDuckHomepageAudio(false); } catch (e) {} }
-      if (window.kvfSliderLock)        { try { window.kvfSliderLock(false); } catch (e) {} }
-      try { explore.focus({ preventScroll: true }); } catch (e) {}
     }
 
     function toggleSound() {
       P.themeMuted = !P.themeMuted;
+      expSoundOn = !P.themeMuted;                    /* carry the choice forward */
       video.muted = P.themeMuted; video.volume = P.themeMuted ? 0 : 1;
       if (!P.themeMuted) { disarm(); if (video.paused) video.play().catch(function () {}); reveal(); }
       updateSoundUI();
     }
 
-    P.close = close;
-    P.warm  = warm;
+    P.activate   = activate;
+    P.deactivate = deactivate;
+    P.warm       = warm;
+    P.video = video; P.explore = explore; P.backBtn = backBtn;
+    P.prevBtn = prevBtn; P.nextBtn = nextBtn;
+    P.controls = controls; P.detail = detail;
+    P.curEl = curEl; P.totEl = totEl;
 
-    explore.addEventListener('click', open);
     explore.addEventListener('pointerenter', warm);
     explore.addEventListener('focus', warm);
-    if (backBtn)  backBtn.addEventListener('click', close);
     if (soundBtn) soundBtn.addEventListener('click', toggleSound);
     video.addEventListener('loadeddata', reveal);
     video.addEventListener('playing',    reveal);
@@ -1043,24 +1058,150 @@
     if (p) projects.push(p);
   });
 
-  /* ── Single reusable media-stop path ──────────────────────────────
-     Closes every open project experience. close() pauses the motion
-     banner, stops its embedded audio, resets playback, releases the
-     homepage audio isolation, unlocks the slider, and disarms any pending
-     unmute — so this covers Love Fever, Mahogany Row, and every future
-     IN DEVELOPMENT project with no per-project logic. Exposed on window so
-     the navigation controller (and any exit path) can guarantee no project
-     soundtrack survives leaving the section. */
-  function closeAllProjects() {
-    projects.forEach(function (p) { if (p.opened) p.close(); });
-  }
-  window.kvfCloseActiveProjects = closeAllProjects;
+  /* ══════════════════════════════════════════════════════════════
+     EXPANDED MOTION-PROJECT SLIDER
+     The second cinematic browsing layer. Selecting EXPLORE on any active
+     project enters expanded mode; from there the active motion experiences
+     (Mahogany Row → Love Fever → The Commandant's Own) auto-advance every 8s
+     and can be moved manually / by swipe / by arrow keys. Each transition
+     swaps the FULL project state together — video, embedded audio, title,
+     category, synopsis, metadata, controls — with a clean single-source audio
+     handoff, reusing the key-art slider's cross-dissolve (kvfSliderGoTo). The
+     key-art slider itself stays frozen (locked) and returns to whatever
+     project was last shown when the visitor exits.
+     ══════════════════════════════════════════════════════════════ */
+  var EXP_MS  = 8000;
+  var expIdx  = -1;                 /* index into projects[]; -1 = not expanded */
+  var expTimer = null;
+  var expHover = false, expFocus = false, expSuppressFocus = false;
 
-  /* Esc closes whichever project is open */
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' || e.key === 'Esc') {
-      closeAllProjects();
+  /* Fixed position indicators (01 / 03, 02 / 03, …) — one per active project */
+  projects.forEach(function (p, i) {
+    if (p.curEl) p.curEl.textContent = pad2(i + 1);
+    if (p.totEl) p.totEl.textContent = pad2(projects.length);
+  });
+
+  function nextIdx(i, dir) { var n = projects.length; return (i + dir + n) % n; }
+  function warmNext() { if (expIdx < 0) return; var nx = projects[nextIdx(expIdx, 1)]; if (nx) nx.warm(); }
+
+  function expCanAuto() {
+    return expIdx >= 0 && projects.length > 1 &&
+           !expHover && !expFocus && !document.hidden && !reducedMotion();
+  }
+  function expStop()  { if (expTimer) { clearInterval(expTimer); expTimer = null; } }
+  function expStart() {
+    expStop();
+    if (!expCanAuto()) return;
+    expTimer = setInterval(function () { if (expCanAuto()) switchExp(1); else expStop(); }, EXP_MS);
+  }
+
+  function enterExpanded(P) {
+    var i = projects.indexOf(P);
+    if (i < 0) return;
+    if (expIdx < 0) {
+      /* Enter the expanded-slider session ONCE: isolate site audio + freeze the
+         key-art slider. Kept out of activate() so switching never churns them. */
+      if (window.kvfDuckHomepageAudio) { try { window.kvfDuckHomepageAudio(true); } catch (e) {} }
+      if (window.kvfSliderLock)        { try { window.kvfSliderLock(true); } catch (e) {} }
+      section.classList.add('expanded-mode');
+      expSoundOn = true;   /* first EXPLORE is a gesture → attempt audible */
+    } else if (projects[expIdx] && projects[expIdx] !== P) {
+      projects[expIdx].deactivate();
     }
+    expIdx = i;
+    if (window.kvfSliderGoTo) { try { window.kvfSliderGoTo(P.slideIndex, 0); } catch (e) {} }
+    P.activate();
+    warmNext();
+    expSuppressFocus = true;
+    if (P.backBtn) { try { P.backBtn.focus({ preventScroll: true }); } catch (e) {} }
+    setTimeout(function () { expSuppressFocus = false; }, 60);
+    expStart();
+  }
+
+  /* Move to the previous/next active project — full state swap + audio handoff. */
+  function switchExp(dir) {
+    if (expIdx < 0 || projects.length < 2) return;
+    var from = projects[expIdx];
+    var to   = projects[nextIdx(expIdx, dir)];
+    if (!to || to === from) return;
+    from.deactivate();                                   /* stop outgoing audio + video first */
+    expIdx = projects.indexOf(to);
+    if (window.kvfSliderGoTo) { try { window.kvfSliderGoTo(to.slideIndex, dir); } catch (e) {} }
+    to.activate();                                       /* incoming becomes the only audio owner */
+    warmNext();
+  }
+
+  function exitExpanded() {
+    if (expIdx < 0) return;
+    expStop();
+    var cur = projects[expIdx];
+    if (cur) cur.deactivate();
+    expIdx = -1;
+    section.classList.remove('expanded-mode');
+    if (window.kvfDuckHomepageAudio) { try { window.kvfDuckHomepageAudio(false); } catch (e) {} }
+    if (window.kvfSliderLock)        { try { window.kvfSliderLock(false); } catch (e) {} }
+    /* The key-art slider is on `cur`'s slide (last goTo), so ← returns there. */
+    if (cur && cur.explore) { try { cur.explore.focus({ preventScroll: true }); } catch (e) {} }
+  }
+
+  /* Single reusable media-stop path — exits the expanded slider entirely
+     (stops the current banner + its audio, releases isolation, unfreezes the
+     key-art slider, cancels the auto timer). Exposed for the nav router and
+     every exit path so no project soundtrack survives leaving the section. */
+  function closeAll() {
+    if (expIdx >= 0) { exitExpanded(); }
+    else { projects.forEach(function (p) { if (p.opened) p.deactivate(); }); }
+  }
+  window.kvfCloseActiveProjects = closeAll;
+
+  /* Wire each active project's EXPLORE / ← / ‹ / › to the expanded slider. */
+  projects.forEach(function (p) {
+    if (p.explore) p.explore.addEventListener('click', function () { enterExpanded(p); });
+    if (p.backBtn) p.backBtn.addEventListener('click', function () { exitExpanded(); });
+    if (p.prevBtn) p.prevBtn.addEventListener('click', function () { switchExp(-1); expStart(); });
+    if (p.nextBtn) p.nextBtn.addEventListener('click', function () { switchExp(1);  expStart(); });
+    /* Pause auto-advance while the visitor reads the detail or uses the controls. */
+    [p.controls, p.detail].forEach(function (el) {
+      if (!el) return;
+      el.addEventListener('pointerenter', function () { if (expIdx >= 0) { expHover = true; expStop(); } });
+      el.addEventListener('pointerleave', function () { expHover = false; expStart(); });
+    });
+  });
+
+  /* Keyboard focus on an interactive element pauses auto-advance. */
+  section.addEventListener('focusin',  function () { if (expIdx >= 0 && !expSuppressFocus) { expFocus = true; expStop(); } });
+  section.addEventListener('focusout', function (e) {
+    if (expIdx < 0) return;
+    if (!section.contains(e.relatedTarget)) { expFocus = false; expStart(); }
+  });
+
+  /* Arrow keys move the expanded slider (and Esc exits). */
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' || e.key === 'Esc') { closeAll(); return; }
+    if (expIdx < 0) return;
+    if (e.key === 'ArrowLeft')  { switchExp(-1); expStart(); }
+    else if (e.key === 'ArrowRight') { switchExp(1); expStart(); }
+  });
+
+  /* Mobile swipe between expanded projects (internal — no page scroll). */
+  var devSlider = document.getElementById('dev-slider');
+  if (devSlider) {
+    var etsx = 0, etsy = 0, etouch = false;
+    devSlider.addEventListener('touchstart', function (e) {
+      if (expIdx < 0) return;
+      var t = e.changedTouches[0]; etsx = t.clientX; etsy = t.clientY; etouch = true; expStop();
+    }, { passive: true });
+    devSlider.addEventListener('touchend', function (e) {
+      if (expIdx < 0 || !etouch) return; etouch = false;
+      var t = e.changedTouches[0], dx = t.clientX - etsx, dy = t.clientY - etsy;
+      if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) { if (dx < 0) switchExp(1); else switchExp(-1); }
+      expStart();
+    }, { passive: true });
+  }
+
+  /* Auto-advance respects the tab being hidden. */
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) expStop(); else expStart();
   });
 
   /* Section-level exit safety net: if the whole IN DEVELOPMENT section
@@ -1240,6 +1381,15 @@
     locked = !!l;
     section.classList.toggle('slider-locked', locked);
     if (locked) stopAuto(); else startAuto();
+  };
+
+  /* Programmatic slide jump — the EXPANDED MOTION-PROJECT SLIDER drives this
+     to cross-dissolve the visible slide to another project while the key-art
+     slider is locked (its own auto + chevrons stay frozen/hidden). On exit the
+     key-art slider is left on the last project shown, so ← returns there. */
+  window.kvfSliderGoTo = function (i, dir) {
+    if (typeof i !== 'number') return;
+    go(i, dir || 0);
   };
 
   if (mqlReduce && mqlReduce.addEventListener) {
