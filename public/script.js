@@ -1070,7 +1070,8 @@
      key-art slider itself stays frozen (locked) and returns to whatever
      project was last shown when the visitor exits.
      ══════════════════════════════════════════════════════════════ */
-  var EXP_MS  = 8000;
+  var EXP_MS  = 35000;              /* expanded motion slider: 35s per project
+                                       (independent of the key-art slider's 8s) */
   var expIdx  = -1;                 /* index into projects[]; -1 = not expanded */
   var expTimer = null;
   var expHover = false, expFocus = false, expSuppressFocus = false;
