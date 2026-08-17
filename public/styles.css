@@ -877,6 +877,242 @@ body[data-view="television"] #hero-section {
   #about.is-view-active .about-atmos { animation: none; opacity: 0.6; }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   CONTACT — CINEMATIC STUDIO INQUIRY ROOM
+   Near-black stage, faint aperture/film-frame linework, a restrained
+   department selector and a minimal form. Its own atmosphere, unmistakably
+   KVF; deliberately does not reuse the ABOUT lion. Fixed view — the whole
+   composition fits the viewport on desktop; nothing here scrolls the page.
+   ═══════════════════════════════════════════════════════════════ */
+.contact-view {
+  display: block;
+  background:
+    radial-gradient(120% 108% at 32% 40%, #0b0a08 0%, #050504 54%, #000000 100%);
+}
+
+/* Extremely subtle light drift (background-position → never extends the box). */
+.contact-atmos {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(40% 42% at 36% 44%, rgba(201,168,76,0.05) 0%, transparent 72%);
+  background-repeat: no-repeat; background-size: 150% 150%; background-position: 40% 50%;
+  opacity: 0;
+}
+#contact.is-view-active .contact-atmos { animation: contactAtmos 36s ease-in-out 1s infinite; }
+@keyframes contactAtmos {
+  0%, 100% { opacity: 0.5;  background-position: 36% 54%; }
+  50%      { opacity: 0.92; background-position: 50% 44%; }
+}
+
+/* Faint aperture / film-frame corner brackets — thin gold linework. */
+.contact-frame { position: absolute; inset: clamp(16px, 2.4vw, 40px); z-index: 1; pointer-events: none; opacity: 0; transition: opacity 1.2s ease 0.2s; }
+#contact.is-view-active .contact-frame { opacity: 1; }
+.cf-corner { position: absolute; width: clamp(26px, 3vw, 52px); height: clamp(26px, 3vw, 52px); }
+.cf-corner::before, .cf-corner::after { content: ""; position: absolute; background: rgba(201,168,76,0.22); }
+.cf-corner::before { width: 100%; height: 1px; }
+.cf-corner::after  { width: 1px;  height: 100%; }
+.cf-tl { top: 0; left: 0; }   .cf-tl::before { top: 0; left: 0; }        .cf-tl::after { top: 0; left: 0; }
+.cf-tr { top: 0; right: 0; }  .cf-tr::before { top: 0; right: 0; }       .cf-tr::after { top: 0; right: 0; }
+.cf-bl { bottom: 0; left: 0; }.cf-bl::before { bottom: 0; left: 0; }     .cf-bl::after { bottom: 0; left: 0; }
+.cf-br { bottom: 0; right: 0; }.cf-br::before{ bottom: 0; right: 0; }    .cf-br::after { bottom: 0; right: 0; }
+
+.contact-stage {
+  position: relative; z-index: 2;
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  align-items: center; gap: clamp(34px, 5vw, 96px);
+  padding: clamp(24px, 4vh, 70px) clamp(30px, 6vw, 116px);
+}
+
+/* ── Statement column ─────────────────────────────────────────── */
+.contact-eyebrow {
+  font-family: 'Montserrat', sans-serif;
+  font-size: clamp(9px, 0.9vw, 12px); font-weight: 300;
+  letter-spacing: 0.5em; text-transform: uppercase; color: var(--gold);
+  margin-bottom: clamp(16px, 2.4vh, 30px);
+}
+.contact-headline {
+  font-family: 'Cinzel', serif; font-weight: 700;
+  font-size: clamp(30px, 3.9vw, 60px);
+  line-height: 1.05; letter-spacing: 0.005em;
+  color: var(--gold-pale);
+  background: linear-gradient(178deg, #f7ecc4 0%, #e8c97a 46%, #b48a34 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  text-shadow: 0 2px 44px rgba(201,168,76,0.08);
+  max-width: 15ch;
+}
+.contact-sub {
+  font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic; font-weight: 300;
+  font-size: clamp(15px, 1.5vw, 21px); line-height: 1.4; color: #efe5d1;
+  margin-top: clamp(16px, 2.4vh, 30px); max-width: 34ch;
+}
+.contact-identifier {
+  margin-top: clamp(26px, 4.4vh, 58px);
+  font-family: 'Montserrat', sans-serif; font-weight: 300;
+  letter-spacing: 0.34em; text-transform: uppercase; line-height: 1.9;
+}
+.ci-name { font-size: clamp(9px, 0.88vw, 11.5px); color: rgba(201,168,76,0.62); }
+.ci-city { font-size: clamp(8.5px, 0.82vw, 11px); color: rgba(201,168,76,0.4); }
+.ci-mail {
+  display: inline-block; margin-top: 8px;
+  font-size: clamp(8.5px, 0.82vw, 11px); letter-spacing: 0.2em; text-transform: none;
+  color: var(--gold-light); text-decoration: none;
+  border-bottom: 1px solid rgba(201,168,76,0.28); padding-bottom: 2px;
+  transition: color 0.3s ease, border-color 0.3s ease;
+}
+.ci-mail:hover, .ci-mail:focus-visible { color: var(--gold-pale); border-color: rgba(232,201,122,0.6); outline: none; }
+
+/* ── Inquiry panel ────────────────────────────────────────────── */
+.contact-panel { max-width: 480px; width: 100%; }
+
+.inquiry-selector { display: flex; flex-direction: column; margin-bottom: clamp(18px, 2.8vh, 30px); }
+.inquiry-opt {
+  appearance: none; -webkit-appearance: none; cursor: pointer;
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; text-align: left; background: none;
+  border: 0; border-bottom: 1px solid rgba(201,168,76,0.12);
+  padding: clamp(9px, 1.4vh, 14px) 2px;
+  font-family: 'Montserrat', sans-serif; font-weight: 300;
+  font-size: clamp(10px, 1vw, 13px); letter-spacing: 0.26em; text-transform: uppercase;
+  color: rgba(201,168,76,0.5);
+  transition: color 0.35s ease, border-color 0.35s ease, letter-spacing 0.35s ease;
+}
+.inquiry-opt:first-child { border-top: 1px solid rgba(201,168,76,0.12); }
+.io-mark {
+  width: 14px; height: 1px; background: rgba(201,168,76,0.3);
+  transition: width 0.35s ease, background 0.35s ease;
+  flex: 0 0 auto;
+}
+.inquiry-opt:hover, .inquiry-opt:focus-visible {
+  color: var(--gold-light); border-color: rgba(201,168,76,0.32); outline: none;
+}
+.inquiry-opt:hover .io-mark, .inquiry-opt:focus-visible .io-mark { width: 22px; background: var(--gold-light); }
+.inquiry-opt.is-active {
+  color: var(--gold-pale); letter-spacing: 0.3em;
+  border-color: rgba(232,201,122,0.5);
+}
+.inquiry-opt.is-active .io-mark { width: 28px; background: var(--gold-bright); box-shadow: 0 0 10px rgba(201,168,76,0.4); }
+.inquiry-opt:focus-visible { text-shadow: 0 0 14px rgba(201,168,76,0.4); }
+
+/* ── Form ─────────────────────────────────────────────────────── */
+.contact-form { display: flex; flex-direction: column; gap: clamp(12px, 1.9vh, 20px); }
+.cf-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.cf-field { display: flex; flex-direction: column; gap: 6px; }
+.cf-field label {
+  font-family: 'Montserrat', sans-serif; font-weight: 300;
+  font-size: clamp(8.5px, 0.82vw, 10.5px); letter-spacing: 0.28em; text-transform: uppercase;
+  color: rgba(201,168,76,0.62);
+}
+.cf-opt { color: rgba(201,168,76,0.34); letter-spacing: 0.2em; margin-left: 6px; }
+.cf-field input, .cf-field textarea {
+  appearance: none; -webkit-appearance: none;
+  background: rgba(201,168,76,0.02);
+  border: 0; border-bottom: 1px solid rgba(201,168,76,0.22);
+  border-radius: 0; padding: 8px 2px; width: 100%;
+  font-family: 'Montserrat', sans-serif; font-weight: 300;
+  font-size: clamp(13px, 1.05vw, 15px); color: var(--gold-pale);
+  transition: border-color 0.35s ease, background 0.35s ease, box-shadow 0.35s ease;
+}
+.cf-field textarea { resize: vertical; min-height: 3.2em; max-height: 30vh; line-height: 1.5; }
+.cf-field input:focus, .cf-field textarea:focus {
+  outline: none; border-color: var(--gold-light);
+  background: rgba(201,168,76,0.05);
+  box-shadow: 0 1px 0 0 rgba(232,201,122,0.5);
+}
+.cf-field input::placeholder, .cf-field textarea::placeholder { color: rgba(201,168,76,0.3); }
+.cf-field input[aria-invalid="true"], .cf-field textarea[aria-invalid="true"] {
+  border-color: #b06a4e;
+}
+.cf-err {
+  font-family: 'Montserrat', sans-serif; font-weight: 300;
+  font-size: clamp(8.5px, 0.8vw, 10.5px); letter-spacing: 0.08em;
+  color: #cf8a6e; min-height: 0; transition: opacity 0.3s ease;
+}
+.cf-dev-notice {
+  font-family: 'Montserrat', sans-serif; font-weight: 300;
+  font-size: clamp(9.5px, 0.85vw, 11.5px); line-height: 1.55; letter-spacing: 0.04em;
+  color: rgba(240,231,212,0.5);
+  padding-left: 12px; border-left: 1px solid rgba(201,168,76,0.24);
+  margin: -2px 0 2px;
+}
+.cf-send {
+  align-self: flex-start; margin-top: clamp(4px, 1vh, 10px);
+  appearance: none; -webkit-appearance: none; cursor: pointer; background: none; border: 0;
+  display: inline-flex; align-items: center; gap: 12px;
+  font-family: 'Montserrat', sans-serif; font-weight: 300;
+  font-size: clamp(10px, 1vw, 12.5px); letter-spacing: 0.34em; text-transform: uppercase;
+  color: var(--gold-light);
+  padding: 6px 0 8px; position: relative;
+}
+.cf-send::after {
+  content: ""; position: absolute; left: 0; bottom: 0; height: 1px; width: 100%;
+  background: linear-gradient(to right, var(--gold-dim), var(--gold-light), transparent);
+  transform: scaleX(0.62); transform-origin: left; transition: transform 0.4s ease;
+}
+.cf-send:hover, .cf-send:focus-visible { color: var(--gold-pale); outline: none; }
+.cf-send:hover::after, .cf-send:focus-visible::after { transform: scaleX(1); }
+.cf-send-arrow { transition: transform 0.35s ease; }
+.cf-send:hover .cf-send-arrow { transform: translateX(5px); }
+.cf-form-error {
+  font-family: 'Montserrat', sans-serif; font-weight: 300;
+  font-size: clamp(9.5px, 0.85vw, 11.5px); line-height: 1.5; color: #cf8a6e; margin-top: 4px;
+}
+.cf-form-error a { color: var(--gold-light); }
+
+/* Confirmation (success) — restrained, no icon, no flourish. */
+.contact-confirm { padding: clamp(8px, 2vh, 20px) 0; }
+.cc-title {
+  font-family: 'Cinzel', serif; font-weight: 700;
+  font-size: clamp(20px, 2.1vw, 30px); letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--gold-pale);
+}
+.cc-sub {
+  font-family: 'Montserrat', sans-serif; font-weight: 300;
+  font-size: clamp(12px, 1vw, 14px); line-height: 1.7; color: rgba(240,231,212,0.66);
+  margin-top: 14px; max-width: 40ch;
+}
+
+/* ── Subtle reveal (keyed on the fixed-view router) ───────────── */
+.c-reveal {
+  opacity: 0; transform: translateY(16px);
+  transition: opacity 1s ease, transform 1.05s cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: opacity, transform;
+}
+#contact.is-view-active .c-reveal { opacity: 1; transform: none; }
+#contact.is-view-active .contact-eyebrow    { transition-delay: 0.20s; }
+#contact.is-view-active .contact-headline   { transition-delay: 0.45s; }
+#contact.is-view-active .contact-sub        { transition-delay: 0.95s; }
+#contact.is-view-active .contact-panel      { transition-delay: 1.20s; }
+#contact.is-view-active .contact-identifier { transition-delay: 1.55s; }
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .contact-stage {
+    grid-template-columns: 1fr;
+    gap: clamp(15px, 2.1vh, 26px); padding: clamp(72px, 11vh, 96px) clamp(26px, 7vw, 60px) clamp(28px, 4vh, 44px);
+  }
+  .contact-headline { max-width: 18ch; }
+  .contact-sub { max-width: 44ch; }
+  /* On stacked layouts the identifier reads better after the form. */
+  .contact-lead { display: contents; }
+  .contact-eyebrow  { order: 1; }
+  .contact-headline { order: 2; }
+  .contact-sub      { order: 3; }
+  .contact-panel    { order: 4; max-width: 100%; }
+  .contact-identifier { order: 5; margin-top: clamp(18px, 3vh, 32px); }
+}
+@media (max-width: 900px) { .contact-stage { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; } }
+@media (max-width: 420px) {
+  .contact-stage { padding: 46px 22px; }
+  .inquiry-opt { letter-spacing: 0.2em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .c-reveal { opacity: 1; transform: none; transition: none; }
+  .contact-atmos, #contact.is-view-active .contact-atmos { animation: none; opacity: 0.6; }
+  .contact-frame { transition: none; }
+}
+
 .footer-line {
   width: 100%; height: 1px;
   background: linear-gradient(to right, transparent, rgba(201,168,76,0.14), transparent);

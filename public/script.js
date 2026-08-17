@@ -1440,3 +1440,134 @@
   /* Default state: HOME. */
   showView('home');
 })();
+
+
+/* ═══════════════════════════════════════════════════════════════
+   CONTACT — inquiry selector + secure delivery
+   The department selector is an ARIA radiogroup (roving tabindex + arrow
+   keys); the active category is reflected in gold accent AND aria-checked
+   (never colour alone) and synced into the hidden inquiry-type field. On
+   submit the form validates, screens an invisible honeypot, then composes a
+   pre-filled message to the chosen department alias via mailto — no backend,
+   no secrets, no credentials in the client. Success/error are restrained,
+   in-place states; unsent text is never cleared by navigation.
+   ═══════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  var root = document.getElementById('contact');
+  if (!root) return;
+  var form = root.querySelector('#contact-form');
+  var opts = [].slice.call(root.querySelectorAll('.inquiry-opt'));
+  if (!form || !opts.length) return;
+
+  var typeField = root.querySelector('#cf-type');
+  var devNotice = root.querySelector('#cf-dev-notice');
+  var confirmEl = root.querySelector('.contact-confirm');
+  var selector  = root.querySelector('.inquiry-selector');
+  var formError = root.querySelector('.cf-form-error');
+
+  /* Hidden delivery anchor — clicking a mailto: link opens the visitor's own
+     mail client with the message pre-filled (keeps the user gesture; nothing
+     is transmitted from the page itself). */
+  var deliver = document.createElement('a');
+  deliver.id = 'cf-deliver'; deliver.className = 'cf-hp';
+  deliver.setAttribute('tabindex', '-1'); deliver.setAttribute('aria-hidden', 'true');
+  form.appendChild(deliver);
+
+  function activeOpt() {
+    return opts.filter(function (o) { return o.classList.contains('is-active'); })[0] || opts[0];
+  }
+
+  function select(opt, focus) {
+    opts.forEach(function (o) {
+      var on = (o === opt);
+      o.classList.toggle('is-active', on);
+      o.setAttribute('aria-checked', String(on));
+      o.setAttribute('tabindex', on ? '0' : '-1');
+    });
+    if (typeField) typeField.value = opt.getAttribute('data-cat') || 'General';
+    if (devNotice) devNotice.hidden = (opt.getAttribute('data-cat') !== 'Development');
+    if (focus) { try { opt.focus(); } catch (e) {} }
+  }
+
+  opts.forEach(function (opt, i) {
+    opt.addEventListener('click', function () { select(opt); });
+    opt.addEventListener('keydown', function (e) {
+      var k = e.key, n = opts.length, j = -1;
+      if (k === 'ArrowRight' || k === 'ArrowDown') j = (i + 1) % n;
+      else if (k === 'ArrowLeft' || k === 'ArrowUp') j = (i - 1 + n) % n;
+      else if (k === 'Home') j = 0;
+      else if (k === 'End') j = n - 1;
+      else if (k === ' ' || k === 'Enter') { e.preventDefault(); select(opt); return; }
+      if (j >= 0) { e.preventDefault(); select(opts[j], true); }
+    });
+  });
+
+  /* ── Validation + delivery ─────────────────────────────────── */
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function setErr(input, msgEl, msg) {
+    if (msg) { input.setAttribute('aria-invalid', 'true'); if (msgEl) msgEl.textContent = msg; }
+    else     { input.removeAttribute('aria-invalid'); if (msgEl) msgEl.textContent = ''; }
+    return !msg;
+  }
+
+  var nameI = form.querySelector('#cf-name');
+  var emailI = form.querySelector('#cf-email');
+  var companyI = form.querySelector('#cf-company');
+  var messageI = form.querySelector('#cf-message');
+  var honey = form.querySelector('input[name="company_url"]');
+
+  [nameI, emailI, messageI].forEach(function (el) {
+    if (el) el.addEventListener('input', function () {
+      var m = el === nameI ? form.querySelector('#err-name')
+            : el === emailI ? form.querySelector('#err-email')
+            : form.querySelector('#err-message');
+      setErr(el, m, '');
+    });
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (formError) { formError.hidden = true; formError.textContent = ''; }
+
+    /* Invisible bot honeypot → silently stop (mimic success, transmit nothing). */
+    if (honey && honey.value.trim() !== '') { showConfirm(); return; }
+
+    var okName = setErr(nameI, form.querySelector('#err-name'), nameI.value.trim() ? '' : 'Please enter your name.');
+    var okEmail = setErr(emailI, form.querySelector('#err-email'), EMAIL_RE.test(emailI.value.trim()) ? '' : 'Please enter a valid email address.');
+    var okMsg = setErr(messageI, form.querySelector('#err-message'), messageI.value.trim() ? '' : 'Please include a short message.');
+    if (!okName || !okEmail || !okMsg) {
+      var firstBad = !okName ? nameI : !okEmail ? emailI : messageI;
+      try { firstBad.focus(); } catch (e2) {}
+      return;
+    }
+
+    try {
+      var opt = activeOpt();
+      var to  = opt.getAttribute('data-email');
+      var cat = opt.getAttribute('data-cat');
+      var subject = 'Kingdom Vision Films — ' + cat + ' Inquiry';
+      var lines = ['Name: ' + nameI.value.trim(), 'Email: ' + emailI.value.trim()];
+      if (companyI && companyI.value.trim()) lines.push('Company: ' + companyI.value.trim());
+      lines.push('Inquiry: ' + cat, '', messageI.value.trim());
+      deliver.href = 'mailto:' + to + '?subject=' + encodeURIComponent(subject) +
+                     '&body=' + encodeURIComponent(lines.join('\n'));
+      deliver.click();
+      showConfirm();
+    } catch (err) {
+      if (formError) {
+        formError.innerHTML = 'We were unable to open your email app. Please write to ' +
+          '<a href="mailto:info@kingdomvisionfilms.com">info@kingdomvisionfilms.com</a>.';
+        formError.hidden = false;
+      }
+    }
+  });
+
+  function showConfirm() {
+    if (selector) selector.style.display = 'none';
+    form.style.display = 'none';
+    if (confirmEl) confirmEl.hidden = false;
+  }
+})();

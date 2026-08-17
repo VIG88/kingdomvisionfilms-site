@@ -616,7 +616,103 @@
   </section>
   <section id="films"      class="anchor-section kvf-view" aria-label="Films"><span class="section-label">Films</span></section>
   <section id="television" class="anchor-section kvf-view" aria-label="Television"><span class="section-label">Television</span></section>
-  <section id="contact"    class="anchor-section kvf-view" aria-label="Contact"><span class="section-label">Contact</span></section>
+  <!-- ═══════════════════════════════════════════════════════════
+       CONTACT — cinematic studio inquiry room. Near-black stage, faint
+       aperture/film-frame linework, an understated inquiry selector that
+       routes to the correct department, and a minimal form. Secure by
+       construction: submission composes a pre-filled message to the chosen
+       department alias (mailto) — no backend, no secrets, no credentials in
+       the client. Audio cleanup on entry is handled by the fixed-view router.
+  ═══════════════════════════════════════════════════════════════ -->
+  <section id="contact" class="kvf-view contact-view" aria-label="Contact Kingdom Vision Films">
+    <div class="contact-atmos" aria-hidden="true"></div>
+    <div class="contact-frame" aria-hidden="true">
+      <span class="cf-corner cf-tl"></span><span class="cf-corner cf-tr"></span>
+      <span class="cf-corner cf-bl"></span><span class="cf-corner cf-br"></span>
+    </div>
+
+    <div class="contact-stage">
+      <!-- Statement -->
+      <div class="contact-lead">
+        <p class="contact-eyebrow c-reveal">Contact</p>
+        <h2 class="contact-headline c-reveal">Let&rsquo;s build something worth&nbsp;watching.</h2>
+        <p class="contact-sub c-reveal">For development, partnerships, distribution, press and general business inquiries.</p>
+        <div class="contact-identifier c-reveal">
+          <p class="ci-name">Kingdom Vision Films</p>
+          <p class="ci-city">Los Angeles, California</p>
+          <a class="ci-mail" href="mailto:info@kingdomvisionfilms.com">info@kingdomvisionfilms.com</a>
+        </div>
+      </div>
+
+      <!-- Inquiry panel -->
+      <div class="contact-panel c-reveal">
+        <div class="inquiry-selector" role="radiogroup" aria-label="Inquiry type">
+          <button type="button" class="inquiry-opt is-active" role="radio" aria-checked="true"
+                  data-cat="General" data-email="info@kingdomvisionfilms.com">
+            <span class="io-mark" aria-hidden="true"></span><span class="io-label">General</span>
+          </button>
+          <button type="button" class="inquiry-opt" role="radio" aria-checked="false" tabindex="-1"
+                  data-cat="Development" data-email="development@kingdomvisionfilms.com">
+            <span class="io-mark" aria-hidden="true"></span><span class="io-label">Development</span>
+          </button>
+          <button type="button" class="inquiry-opt" role="radio" aria-checked="false" tabindex="-1"
+                  data-cat="Business Affairs" data-email="business@kingdomvisionfilms.com">
+            <span class="io-mark" aria-hidden="true"></span><span class="io-label">Business Affairs</span>
+          </button>
+          <button type="button" class="inquiry-opt" role="radio" aria-checked="false" tabindex="-1"
+                  data-cat="Press &amp; Media" data-email="press@kingdomvisionfilms.com">
+            <span class="io-mark" aria-hidden="true"></span><span class="io-label">Press &amp; Media</span>
+          </button>
+        </div>
+
+        <form id="contact-form" class="contact-form" novalidate>
+          <!-- Invisible bot honeypot: real visitors never see or fill it. -->
+          <div class="cf-hp" aria-hidden="true">
+            <label>Leave this field empty<input type="text" name="company_url" tabindex="-1" autocomplete="off"></label>
+          </div>
+
+          <div class="cf-field">
+            <label for="cf-name">Name</label>
+            <input id="cf-name" name="name" type="text" autocomplete="name" required aria-required="true">
+            <span class="cf-err" id="err-name" aria-live="polite"></span>
+          </div>
+          <div class="cf-field">
+            <label for="cf-email">Email</label>
+            <input id="cf-email" name="email" type="email" autocomplete="email" required aria-required="true">
+            <span class="cf-err" id="err-email" aria-live="polite"></span>
+          </div>
+          <div class="cf-field">
+            <label for="cf-company">Company / Organization <span class="cf-opt">Optional</span></label>
+            <input id="cf-company" name="company" type="text" autocomplete="organization">
+          </div>
+
+          <!-- Inquiry type — kept in sync with the selector, carried into the message. -->
+          <input type="hidden" id="cf-type" name="inquiry_type" value="General">
+
+          <p class="cf-dev-notice" id="cf-dev-notice" hidden>
+            Kingdom Vision Films does not accept unsolicited scripts, treatments, concepts, or other creative materials.
+          </p>
+
+          <div class="cf-field">
+            <label for="cf-message">Message</label>
+            <textarea id="cf-message" name="message" rows="4" required aria-required="true"></textarea>
+            <span class="cf-err" id="err-message" aria-live="polite"></span>
+          </div>
+
+          <button type="submit" class="cf-send">
+            <span class="cf-send-label">Send Inquiry</span>
+            <span class="cf-send-arrow" aria-hidden="true">&rarr;</span>
+          </button>
+          <p class="cf-form-error" role="alert" hidden></p>
+        </form>
+
+        <div class="contact-confirm" hidden role="status" aria-live="polite">
+          <p class="cc-title">Message ready.</p>
+          <p class="cc-sub">Your inquiry has opened in your email app — send it and Kingdom Vision Films will be in touch.</p>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <footer id="site-footer" role="contentinfo">
     <div class="footer-line"></div>
