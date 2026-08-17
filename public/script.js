@@ -915,9 +915,9 @@
 
   function initProject(slate) {
     var video   = slate.querySelector('.slate-video');
-    var explore = slate.querySelector('.slate-explore');
-    if (!video || !explore) return null;              /* not an active project */
-    var backBtn = slate.querySelector('.mr-back');
+    var explore = slate.querySelector('.slate-explore');  /* removed from markup — kept null-safe */
+    if (!video) return null;                          /* an active project = a slide with a motion banner */
+    var backBtn = slate.querySelector('.mr-back');        /* removed from markup — kept null-safe */
     var soundBtn= slate.querySelector('.mr-sound');
     var prevBtn = slate.querySelector('.mr-slidenav-prev');
     var nextBtn = slate.querySelector('.mr-slidenav-next');
@@ -984,7 +984,7 @@
     function activate() {
       P.opened = true;
       slate.classList.add('expanded');
-      explore.setAttribute('aria-expanded', 'true');
+      if (explore) explore.setAttribute('aria-expanded', 'true');
 
       /* Reduced motion → stay on the still key art, no motion, no audio */
       if (reducedMotion()) { P.themeMuted = true; updateSoundUI(); return; }
@@ -1020,7 +1020,7 @@
     function deactivate() {
       P.opened = false;
       slate.classList.remove('expanded');
-      explore.setAttribute('aria-expanded', 'false');
+      if (explore) explore.setAttribute('aria-expanded', 'false');
       disarm();
 
       video.classList.remove('is-playing');
@@ -1047,8 +1047,7 @@
     P.controls = controls; P.detail = detail;
     P.curEl = curEl; P.totEl = totEl;
 
-    explore.addEventListener('pointerenter', warm);
-    explore.addEventListener('focus', warm);
+    if (explore) { explore.addEventListener('pointerenter', warm); explore.addEventListener('focus', warm); }
     if (soundBtn) soundBtn.addEventListener('click', toggleSound);
     video.addEventListener('loadeddata', reveal);
     video.addEventListener('playing',    reveal);
@@ -1112,12 +1111,13 @@
     var i = projects.indexOf(P);
     if (i < 0) return;
     if (expIdx < 0) {
-      /* Enter the expanded-slider session ONCE: isolate site audio + freeze the
-         key-art slider. Kept out of activate() so switching never churns them. */
+      /* Open the motion-project experience ONCE per IN DEVELOPMENT visit: isolate
+         site audio + freeze the underlying slide engine. Kept out of activate()
+         so switching projects never churns them. */
       if (window.kvfDuckHomepageAudio) { try { window.kvfDuckHomepageAudio(true); } catch (e) {} }
       if (window.kvfSliderLock)        { try { window.kvfSliderLock(true); } catch (e) {} }
       section.classList.add('expanded-mode');
-      expSoundOn = true;   /* first EXPLORE is a gesture → attempt audible */
+      expSoundOn = true;   /* entering IN DEVELOPMENT is a nav gesture → attempt audible */
     } else if (projects[expIdx] && projects[expIdx] !== P) {
       projects[expIdx].deactivate();
     }
@@ -1152,7 +1152,8 @@
     section.classList.remove('expanded-mode');
     if (window.kvfDuckHomepageAudio) { try { window.kvfDuckHomepageAudio(false); } catch (e) {} }
     if (window.kvfSliderLock)        { try { window.kvfSliderLock(false); } catch (e) {} }
-    /* The key-art slider is on `cur`'s slide (last goTo), so ← returns there. */
+    /* Global navigation is the only way to leave IN DEVELOPMENT now; the view
+       router lands focus on the destination view. (explore is null post-removal.) */
     if (cur && cur.explore) { try { cur.explore.focus({ preventScroll: true }); } catch (e) {} }
   }
 
@@ -1165,6 +1166,18 @@
     else { projects.forEach(function (p) { if (p.opened) p.deactivate(); }); }
   }
   window.kvfCloseActiveProjects = closeAll;
+
+  /* IN DEVELOPMENT is now a single layer: entering the view opens the motion
+     experience directly on the flagship (Mahogany Row, projects[0]) — no key-art
+     browsing, no EXPLORE gate. The view router calls this after showing the view;
+     it always cleans up first, so expIdx is -1 here and every fresh entry starts
+     on Mahogany Row. The motion banner then plays per the current sound state. */
+  function openDevExperience() {
+    if (expIdx >= 0) return;               /* already open — leave the viewer where they are */
+    if (!projects.length) return;
+    enterExpanded(projects[0]);
+  }
+  window.kvfOpenDevExperience = openDevExperience;
 
   /* Wire each active project's EXPLORE / ← / ‹ / › + cinematic edge controls to
      the expanded slider. Manual only — no auto-advance to pause or resume. */
@@ -1249,11 +1262,15 @@
 
 
 /* ═══════════════════════════════════════════════════════════════
-   IN DEVELOPMENT — single-card cinematic project slider
-   One project at a time, cross-dissolve. Mahogany Row is slide 01
-   (flagship). Auto-advances ~8s, but pauses on hover/focus/touch,
-   while a project is open (kvfSliderLock), when off-screen, when the
-   tab is hidden, and under prefers-reduced-motion.
+   IN DEVELOPMENT — cinematic project cross-dissolve engine
+   One project visible at a time; Mahogany Row is slide 01 (flagship).
+   This is NO LONGER a viewer-facing key-art browsing slider — the 8s
+   auto-advance, chevron nav, counter, hover/focus/keyboard/swipe of the
+   old key-art layer were removed when the motion-banner experience became
+   the single IN DEVELOPMENT layer. What remains is the shared slide
+   cross-dissolve (render/go), driven programmatically by the motion
+   experience via kvfSliderGoTo as the viewer moves NEXT / PREVIOUS.
+   Reduced motion → plain crossfade, no lateral drift.
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -1264,20 +1281,10 @@
   var slides  = [].slice.call(slider.querySelectorAll('.dev-slide'));
   if (slides.length < 2) return;
 
-  var prevBtn = section.querySelector('.dev-nav-prev');
-  var nextBtn = section.querySelector('.dev-nav-next');
-  var curEl   = section.querySelector('.dev-nav-cur');
-  var totEl   = section.querySelector('.dev-nav-total');
-
-  var AUTO_MS = 8000;
   var mqlReduce = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   function reduce() { return !!(mqlReduce && mqlReduce.matches); }
 
-  var idx = 0, timer = null;
-  var hovering = false, focusing = false, locked = false, inView = false;
-
-  function pad(n) { return (n < 10 ? '0' : '') + n; }
-
+  var idx = 0;
   var OFFSET = 46;        /* px of restrained lateral drift per transition */
   var pendingRaf = null;  /* guards the settle-frame against rapid navigation */
 
@@ -1322,91 +1329,23 @@
         incoming.style.transform = 'translateX(0)'; /* drift 46px → centre      */
       });
     }
-
-    if (curEl) curEl.textContent = pad(idx + 1);
-    if (totEl) totEl.textContent = pad(slides.length);
   }
   function go(i, dir) { idx = (i + slides.length) % slides.length; render(dir); }
-  function next() { go(idx + 1, 1); }
-  function prev() { go(idx - 1, -1); }
 
-  function canAuto() {
-    return inView && !hovering && !focusing && !locked && !document.hidden && !reduce();
-  }
-  function stopAuto() { if (timer) { clearInterval(timer); timer = null; } }
-  function startAuto() {
-    stopAuto();
-    if (!canAuto()) return;
-    timer = setInterval(function () { if (canAuto()) next(); else stopAuto(); }, AUTO_MS);
-  }
-
-  /* Manual controls */
-  if (nextBtn) nextBtn.addEventListener('click', function () { next(); startAuto(); });
-  if (prevBtn) prevBtn.addEventListener('click', function () { prev(); startAuto(); });
-
-  /* Pause while the visitor is engaging with the current project */
-  slider.addEventListener('pointerenter', function () { hovering = true; stopAuto(); });
-  slider.addEventListener('pointerleave', function () { hovering = false; startAuto(); });
-  slider.addEventListener('focusin',  function () { focusing = true; stopAuto(); });
-  slider.addEventListener('focusout', function (e) {
-    if (!slider.contains(e.relatedTarget)) { focusing = false; startAuto(); }
-  });
-
-  /* Keyboard navigation */
-  section.addEventListener('keydown', function (e) {
-    if (locked) return;
-    if (e.key === 'ArrowLeft')  { prev(); startAuto(); }
-    else if (e.key === 'ArrowRight') { next(); startAuto(); }
-  });
-
-  /* Touch swipe — gesture only (cross-dissolve, no finger-follow translate) */
-  var tsx = 0, tsy = 0, touching = false;
-  slider.addEventListener('touchstart', function (e) {
-    var t = e.changedTouches[0]; tsx = t.clientX; tsy = t.clientY; touching = true; stopAuto();
-  }, { passive: true });
-  slider.addEventListener('touchend', function (e) {
-    if (!touching) return; touching = false;
-    var t = e.changedTouches[0], dx = t.clientX - tsx, dy = t.clientY - tsy;
-    if (!locked && Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) {
-      if (dx < 0) next(); else prev();
-    }
-    startAuto();
-  }, { passive: true });
-
-  /* Tab visibility */
-  document.addEventListener('visibilitychange', function () {
-    if (document.hidden) stopAuto(); else startAuto();
-  });
-
-  /* Auto-advance is gated on IN DEVELOPMENT being the ACTIVE fixed view.
-     The section is always present in the fixed-view layout, so an
-     IntersectionObserver can't distinguish active from hidden — the view
-     router drives this hook instead. IN DEVELOPMENT is the only auto-slider. */
-  window.kvfDevSliderActivate = function (active) {
-    inView = !!active;
-    if (inView) startAuto(); else stopAuto();
-  };
-
-  /* Lock hook — the Mahogany Row explore module freezes the slider while a
-     project experience is open, then releases it (same slide) on exit. */
+  /* Freeze hook — kept for contract compatibility with the motion experience's
+     enter/exit. Toggles the section state class only; there is no auto-advance
+     to pause now that the key-art browsing layer is gone. */
   window.kvfSliderLock = function (l) {
-    locked = !!l;
-    section.classList.toggle('slider-locked', locked);
-    if (locked) stopAuto(); else startAuto();
+    section.classList.toggle('slider-locked', !!l);
   };
 
-  /* Programmatic slide jump — the EXPANDED MOTION-PROJECT SLIDER drives this
-     to cross-dissolve the visible slide to another project while the key-art
-     slider is locked (its own auto + chevrons stay frozen/hidden). On exit the
-     key-art slider is left on the last project shown, so ← returns there. */
+  /* Programmatic slide jump — the motion-project experience drives this to
+     cross-dissolve the visible slide to another project as the viewer moves
+     NEXT / PREVIOUS. This is the only path into render() now. */
   window.kvfSliderGoTo = function (i, dir) {
     if (typeof i !== 'number') return;
     go(i, dir || 0);
   };
-
-  if (mqlReduce && mqlReduce.addEventListener) {
-    mqlReduce.addEventListener('change', function () { if (reduce()) stopAuto(); else startAuto(); });
-  }
 
   render();
 })();
@@ -1467,9 +1406,12 @@
     /* 4. Reflect the active section in the navigation. */
     setActiveNav(view === 'home' ? '' : view);
 
-    /* 5. IN DEVELOPMENT is the only auto-advancing view. */
-    if (window.kvfDevSliderActivate) {
-      try { window.kvfDevSliderActivate(view === 'projects'); } catch (e) {}
+    /* 5. IN DEVELOPMENT opens directly into the motion-banner experience on the
+          flagship (Mahogany Row) — no key-art browsing, no EXPLORE gate. Cleanup
+          in step 1 already released any prior project, so this always starts fresh
+          on Mahogany Row. Other views need nothing here. */
+    if (view === 'projects' && window.kvfOpenDevExperience) {
+      try { window.kvfOpenDevExperience(); } catch (e) {}
     }
 
     /* 6. Land keyboard focus inside the newly shown view. */
