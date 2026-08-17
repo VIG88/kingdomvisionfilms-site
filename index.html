@@ -153,7 +153,32 @@
 
   <!-- Fixed cinematic view states — navigation switches the active view;
        the page itself never scrolls. -->
-  <section id="about" class="anchor-section kvf-view" aria-label="About"><span class="section-label">About</span></section>
+  <!-- ═══════════════════════════════════════════════════════════
+       ABOUT — cinematic studio manifesto. Near-black stage, an enormous
+       faint imprint of the official KVF lion embossed into the darkness
+       (screen-blended + radial-masked so it emerges from shadow, never a
+       logo box), and an editorial title-sequence reveal keyed on the
+       fixed-view router's .is-view-active class. No page scroll, no audio.
+  ═══════════════════════════════════════════════════════════════ -->
+  <section id="about" class="kvf-view about-view" aria-label="About Kingdom Vision Films">
+    <div class="about-lion" aria-hidden="true"></div>
+    <div class="about-atmos" aria-hidden="true"></div>
+    <div class="about-stage">
+      <div class="about-content">
+        <p class="about-eyebrow about-line">About Kingdom Vision Films</p>
+        <h2 class="about-hero about-line">We didn&rsquo;t come<br>to fit in.</h2>
+        <p class="about-secondary about-line">We came to build what we couldn&rsquo;t find.</p>
+        <p class="about-body about-line">Kingdom Vision Films is an independent production company creating bold, cinematic stories with ambition, substance, and something worth remembering.</p>
+        <p class="about-manifesto about-line" role="text">
+          <span>No formulas.</span>
+          <span>No safe choices.</span>
+          <span>No wasted stories.</span>
+        </p>
+        <p class="about-final about-line">The next era<br>won&rsquo;t look like the last.</p>
+        <p class="about-sign about-line">Kingdom Vision Films<br><span>Los Angeles</span></p>
+      </div>
+    </div>
+  </section>
   <!-- ═══════════════════════════════════════════════════════════
        IN DEVELOPMENT — cinematic development slate (Phase 1: Mahogany Row)
        Nav "IN DEVELOPMENT" → #projects. Self-contained section; does not
