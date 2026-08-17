@@ -1246,6 +1246,72 @@ body[data-view="television"] #hero-section {
    the banner (which may carry its own MAHOGANY ROW title) is unobstructed. */
 .slate.expanded .slate-lead { opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
 
+/* ── Cinematic viewer-controlled project navigation ──────────────────
+   The expanded experience no longer auto-advances; the viewer decides when to
+   move on. These metallic-gold edge controls sit at the left/right of the motion
+   frame and fade in only after the NEXT PROJECT reveal (~35s after a project
+   opens, or early when the pointer nears an edge — the .exp-ready state). Before
+   that they are fully hidden and non-interactive; arrow keys and the bottom
+   .mr-slidenav stay available the whole time, so a viewer is never trapped. */
+.mr-edge {
+  position: absolute; z-index: 6; top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex; align-items: center; gap: clamp(7px, 0.7vw, 11px);
+  appearance: none; -webkit-appearance: none; cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: clamp(8.5px, 0.82vw, 10.5px);
+  font-weight: 300; letter-spacing: 0.32em; text-transform: uppercase;
+  color: rgba(240,226,198,0.9);
+  background: rgba(6,5,4,0.4);
+  border: 1px solid rgba(201,168,76,0.34);
+  border-radius: 999px;
+  padding: clamp(9px, 1vw, 13px) clamp(13px, 1.3vw, 19px);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  text-shadow: 0 1px 8px rgba(0,0,0,0.8);
+  white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.85s ease, color 0.35s ease, border-color 0.35s ease,
+              background 0.35s ease, box-shadow 0.35s ease, transform 0.45s ease;
+}
+.mr-edge-next { right: clamp(14px, 2.2vw, 34px); }
+.mr-edge-prev { left:  clamp(14px, 2.2vw, 34px); }
+.mr-edge-chev {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(20px, 1.7vw, 27px); line-height: 1; color: var(--gold-light);
+}
+.mr-edge:hover, .mr-edge:focus-visible {
+  color: var(--gold-pale); border-color: rgba(232,201,122,0.62);
+  background: rgba(6,5,4,0.6); outline: none;
+  box-shadow: 0 0 22px 0 rgba(201,168,76,0.22);
+}
+.mr-edge-next:hover, .mr-edge-next:focus-visible { transform: translateY(-50%) translateX(3px); }
+.mr-edge-prev:hover, .mr-edge-prev:focus-visible { transform: translateY(-50%) translateX(-3px); }
+
+/* Reveal — slow gold illumination once the project has been experienced (or on
+   early edge proximity). NEXT is the primary control; PREVIOUS stays understated. */
+.dev-section.exp-ready .slate.expanded .mr-edge-next {
+  opacity: 1; pointer-events: auto;
+}
+.dev-section.exp-ready .slate.expanded .mr-edge-prev {
+  opacity: 0.5; pointer-events: auto;
+}
+.dev-section.exp-ready .slate.expanded .mr-edge-prev:hover,
+.dev-section.exp-ready .slate.expanded .mr-edge-prev:focus-visible { opacity: 0.92; }
+
+@media (max-width: 640px) {
+  /* Small chevron-forward edge arrows on phones — the long labels would crowd
+     a narrow banner, so keep the chevron (a compact edge arrow) + NEXT only. */
+  .mr-edge { padding: 8px 11px; letter-spacing: 0.2em; gap: 6px; }
+  .mr-edge-next { right: 9px; }
+  .mr-edge-prev { left: 9px; }
+  .mr-edge-prev .mr-edge-label { display: none; }
+  .mr-edge-next:hover, .mr-edge-next:focus-visible { transform: translateY(-50%); }
+  .mr-edge-prev:hover, .mr-edge-prev:focus-visible { transform: translateY(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mr-edge { transition: opacity 0.2s ease; }
+}
+
 /* ── Responsive ─────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   /* Mobile: the lead already sits BELOW the art (not over the video), so keep

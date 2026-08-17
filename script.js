@@ -921,6 +921,8 @@
     var soundBtn= slate.querySelector('.mr-sound');
     var prevBtn = slate.querySelector('.mr-slidenav-prev');
     var nextBtn = slate.querySelector('.mr-slidenav-next');
+    var prevEdge= slate.querySelector('.mr-edge-prev');
+    var nextEdge= slate.querySelector('.mr-edge-next');
     var curEl   = slate.querySelector('.mr-slidenav-cur');
     var totEl   = slate.querySelector('.mr-slidenav-total');
     var controls= slate.querySelector('.mr-controls');
@@ -954,6 +956,8 @@
       if (backBtn && backBtn.contains(e.target)) return;
       if (prevBtn && prevBtn.contains(e.target)) return;
       if (nextBtn && nextBtn.contains(e.target)) return;
+      if (prevEdge && prevEdge.contains(e.target)) return;
+      if (nextEdge && nextEdge.contains(e.target)) return;
       disarm();
       if (P.opened) {
         expSoundOn = true;
@@ -1039,6 +1043,7 @@
     P.warm       = warm;
     P.video = video; P.explore = explore; P.backBtn = backBtn;
     P.prevBtn = prevBtn; P.nextBtn = nextBtn;
+    P.prevEdge = prevEdge; P.nextEdge = nextEdge;
     P.controls = controls; P.detail = detail;
     P.curEl = curEl; P.totEl = totEl;
 
@@ -1070,13 +1075,16 @@
      key-art slider itself stays frozen (locked) and returns to whatever
      project was last shown when the visitor exits.
      ══════════════════════════════════════════════════════════════ */
-  var EXP_MS  = 35000;              /* expanded motion slider: 35s per project
-                                       (independent of the key-art slider's 8s) */
-  var expIdx  = -1;                 /* index into projects[]; -1 = not expanded */
-  var expTimer = null;
-  var expHover = false, expFocus = false, expSuppressFocus = false;
+  /* Expanded projects DO NOT auto-advance. Once a viewer explores a project it
+     stays open until they choose NEXT / PREVIOUS / ← / a global destination. The
+     only timer here reveals the cinematic NEXT PROJECT control ~35s after a
+     project opens (reset on every project change, cleared on exit / navigation).
+     The motion banner keeps looping the whole time. */
+  var REVEAL_MS = 35000;            /* NEXT PROJECT control reveal delay */
+  var expIdx    = -1;               /* index into projects[]; -1 = not expanded */
+  var revealTimer = null;
 
-  /* Fixed position indicators (01 / 03, 02 / 03, …) — one per active project */
+  /* Fixed position indicators (01 / 05, 02 / 05, …) — one per active project */
   projects.forEach(function (p, i) {
     if (p.curEl) p.curEl.textContent = pad2(i + 1);
     if (p.totEl) p.totEl.textContent = pad2(projects.length);
@@ -1085,15 +1093,19 @@
   function nextIdx(i, dir) { var n = projects.length; return (i + dir + n) % n; }
   function warmNext() { if (expIdx < 0) return; var nx = projects[nextIdx(expIdx, 1)]; if (nx) nx.warm(); }
 
-  function expCanAuto() {
-    return expIdx >= 0 && projects.length > 1 &&
-           !expHover && !expFocus && !document.hidden && !reducedMotion();
+  /* NEXT PROJECT reveal — controls the edge control's opacity only; it never
+     switches projects. Reduced motion skips the wait (there is no banner to sit
+     through). */
+  function revealClear() {
+    if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
+    section.classList.remove('exp-ready');
   }
-  function expStop()  { if (expTimer) { clearInterval(expTimer); expTimer = null; } }
-  function expStart() {
-    expStop();
-    if (!expCanAuto()) return;
-    expTimer = setInterval(function () { if (expCanAuto()) switchExp(1); else expStop(); }, EXP_MS);
+  function revealNow() { if (expIdx >= 0) section.classList.add('exp-ready'); }
+  function revealStart() {
+    revealClear();
+    if (expIdx < 0) return;
+    if (reducedMotion()) { revealNow(); return; }
+    revealTimer = setTimeout(revealNow, REVEAL_MS);
   }
 
   function enterExpanded(P) {
@@ -1113,10 +1125,8 @@
     if (window.kvfSliderGoTo) { try { window.kvfSliderGoTo(P.slideIndex, 0); } catch (e) {} }
     P.activate();
     warmNext();
-    expSuppressFocus = true;
     if (P.backBtn) { try { P.backBtn.focus({ preventScroll: true }); } catch (e) {} }
-    setTimeout(function () { expSuppressFocus = false; }, 60);
-    expStart();
+    revealStart();
   }
 
   /* Move to the previous/next active project — full state swap + audio handoff. */
@@ -1130,11 +1140,12 @@
     if (window.kvfSliderGoTo) { try { window.kvfSliderGoTo(to.slideIndex, dir); } catch (e) {} }
     to.activate();                                       /* incoming becomes the only audio owner */
     warmNext();
+    revealStart();                                       /* reset the NEXT reveal for the new project */
   }
 
   function exitExpanded() {
     if (expIdx < 0) return;
-    expStop();
+    revealClear();
     var cur = projects[expIdx];
     if (cur) cur.deactivate();
     expIdx = -1;
@@ -1155,33 +1166,24 @@
   }
   window.kvfCloseActiveProjects = closeAll;
 
-  /* Wire each active project's EXPLORE / ← / ‹ / › to the expanded slider. */
+  /* Wire each active project's EXPLORE / ← / ‹ / › + cinematic edge controls to
+     the expanded slider. Manual only — no auto-advance to pause or resume. */
   projects.forEach(function (p) {
-    if (p.explore) p.explore.addEventListener('click', function () { enterExpanded(p); });
-    if (p.backBtn) p.backBtn.addEventListener('click', function () { exitExpanded(); });
-    if (p.prevBtn) p.prevBtn.addEventListener('click', function () { switchExp(-1); expStart(); });
-    if (p.nextBtn) p.nextBtn.addEventListener('click', function () { switchExp(1);  expStart(); });
-    /* Pause auto-advance while the visitor reads the detail or uses the controls. */
-    [p.controls, p.detail].forEach(function (el) {
-      if (!el) return;
-      el.addEventListener('pointerenter', function () { if (expIdx >= 0) { expHover = true; expStop(); } });
-      el.addEventListener('pointerleave', function () { expHover = false; expStart(); });
-    });
+    if (p.explore)  p.explore.addEventListener('click', function () { enterExpanded(p); });
+    if (p.backBtn)  p.backBtn.addEventListener('click', function () { exitExpanded(); });
+    if (p.prevBtn)  p.prevBtn.addEventListener('click', function () { switchExp(-1); });
+    if (p.nextBtn)  p.nextBtn.addEventListener('click', function () { switchExp(1);  });
+    if (p.prevEdge) p.prevEdge.addEventListener('click', function () { switchExp(-1); });
+    if (p.nextEdge) p.nextEdge.addEventListener('click', function () { switchExp(1);  });
   });
 
-  /* Keyboard focus on an interactive element pauses auto-advance. */
-  section.addEventListener('focusin',  function () { if (expIdx >= 0 && !expSuppressFocus) { expFocus = true; expStop(); } });
-  section.addEventListener('focusout', function (e) {
-    if (expIdx < 0) return;
-    if (!section.contains(e.relatedTarget)) { expFocus = false; expStart(); }
-  });
-
-  /* Arrow keys move the expanded slider (and Esc exits). */
+  /* Arrow keys move the expanded slider (and Esc exits) — always available, so a
+     viewer is never trapped waiting on the 35s reveal. */
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' || e.key === 'Esc') { closeAll(); return; }
     if (expIdx < 0) return;
-    if (e.key === 'ArrowLeft')  { switchExp(-1); expStart(); }
-    else if (e.key === 'ArrowRight') { switchExp(1); expStart(); }
+    if (e.key === 'ArrowLeft')  { switchExp(-1); }
+    else if (e.key === 'ArrowRight') { switchExp(1); }
   });
 
   /* Mobile swipe between expanded projects (internal — no page scroll). */
@@ -1190,20 +1192,29 @@
     var etsx = 0, etsy = 0, etouch = false;
     devSlider.addEventListener('touchstart', function (e) {
       if (expIdx < 0) return;
-      var t = e.changedTouches[0]; etsx = t.clientX; etsy = t.clientY; etouch = true; expStop();
+      var t = e.changedTouches[0]; etsx = t.clientX; etsy = t.clientY; etouch = true;
+      if (nearEdge(t.clientX)) revealNow();       /* light tap near an edge reveals the control early */
     }, { passive: true });
     devSlider.addEventListener('touchend', function (e) {
       if (expIdx < 0 || !etouch) return; etouch = false;
       var t = e.changedTouches[0], dx = t.clientX - etsx, dy = t.clientY - etsy;
       if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) { if (dx < 0) switchExp(1); else switchExp(-1); }
-      expStart();
+    }, { passive: true });
+    /* Pointer nearing either frame edge reveals the control early (reveal only —
+       it never switches projects). */
+    devSlider.addEventListener('pointermove', function (e) {
+      if (expIdx >= 0 && nearEdge(e.clientX)) revealNow();
     }, { passive: true });
   }
 
-  /* Auto-advance respects the tab being hidden. */
-  document.addEventListener('visibilitychange', function () {
-    if (document.hidden) expStop(); else expStart();
-  });
+  /* True when a client-X sits within the outer ~18% band of the slider frame. */
+  function nearEdge(clientX) {
+    if (!devSlider) return false;
+    var r = devSlider.getBoundingClientRect();
+    if (!r.width) return false;
+    var x = clientX - r.left;
+    return x > r.width * 0.82 || x < r.width * 0.18;
+  }
 
   /* Section-level exit safety net: if the whole IN DEVELOPMENT section
      leaves the viewport while project media is active — manual scroll-away,
