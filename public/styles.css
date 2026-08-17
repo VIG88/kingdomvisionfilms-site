@@ -894,9 +894,13 @@ body[data-view="television"] #hero-section {
 }
 .about-sign-vig-link:focus-visible { outline: 1px solid rgba(201,168,76,0.5); outline-offset: 3px; }
 /* Emblem: used exactly as supplied (no recolour/crop/glow/shadow); sized small,
-   a touch taller than the text for legibility, proportions preserved. */
+   a touch taller than the text for legibility, proportions preserved. The
+   supplied asset has a black background — screen-blending it drops that black
+   into the near-black card so no rectangular box, edge, or halo shows; only the
+   gold mark remains. */
 .about-sign-vig-emblem {
   display: block; width: auto; height: clamp(16px, 1.8vw, 22px);
+  mix-blend-mode: screen;
 }
 
 /* ── Cinematic reveal (keyed on the fixed-view router) ─────────── */
