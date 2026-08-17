@@ -751,8 +751,8 @@ body[data-view="television"] #hero-section {
   animation: aboutLionIn 2.4s ease-out forwards,
              aboutLionBreathe 19s ease-in-out 2.4s infinite;
 }
-@keyframes aboutLionIn      { from { opacity: 0; }      to { opacity: 0.15; } }
-@keyframes aboutLionBreathe { 0%, 100% { opacity: 0.125; } 50% { opacity: 0.17; } }
+@keyframes aboutLionIn      { from { opacity: 0; }      to { opacity: 0.09; } }
+@keyframes aboutLionBreathe { 0%, 100% { opacity: 0.07; } 50% { opacity: 0.10; } }
 
 /* Extremely subtle light drift across the darkness — imperceptible on
    purpose (no particles, no smoke, no zoom). */
@@ -873,7 +873,7 @@ body[data-view="television"] #hero-section {
 @media (prefers-reduced-motion: reduce) {
   .about-line { opacity: 1; transform: none; transition: none; }
   .about-lion, .about-atmos { animation: none; }
-  #about.is-view-active .about-lion  { animation: none; opacity: 0.15; }
+  #about.is-view-active .about-lion  { animation: none; opacity: 0.08; }
   #about.is-view-active .about-atmos { animation: none; opacity: 0.6; }
 }
 

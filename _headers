@@ -1,0 +1,7 @@
+# Cloudflare Pages headers.
+# HTML documents must always revalidate so visitors receive the current
+# (?v=-versioned) stylesheet and script URLs rather than a stale cached page.
+/
+  Cache-Control: public, max-age=0, must-revalidate
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
