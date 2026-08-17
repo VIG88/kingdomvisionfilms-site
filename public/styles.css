@@ -859,8 +859,13 @@ body[data-view="television"] #hero-section {
   text-shadow: 0 2px 40px rgba(201,168,76,0.08);
   margin-top: clamp(20px, 3vh, 40px);
 }
+/* Bottom-centred corporate signature — one horizontal lockup:
+   KINGDOM VISION FILMS · LOS ANGELES  |  A VIG COMPANY  [emblem].
+   Tertiary branding: small, quiet, never competing with the manifesto. */
 .about-sign {
   grid-column: 1 / -1; grid-row: 2; position: relative; z-index: 1;
+  display: flex; flex-wrap: nowrap; align-items: center; justify-content: center;
+  gap: clamp(12px, 1.8vw, 30px);
   font-family: 'Montserrat', sans-serif; font-weight: 300;
   font-size: clamp(8.5px, 0.8vw, 11px);
   letter-spacing: 0.4em; text-transform: uppercase;
@@ -868,7 +873,31 @@ body[data-view="television"] #hero-section {
   padding-top: clamp(10px, 1.8vh, 22px);
   border-top: 1px solid rgba(201,168,76,0.09);
 }
+.about-sign-kvf { white-space: nowrap; }
 .about-sign-dot { color: rgba(201,168,76,0.32); }
+/* Thin vertical gold divider between the studio identifier and the VIG mark. */
+.about-sign-rule {
+  flex: 0 0 auto; width: 1px; height: clamp(11px, 1.3vw, 16px);
+  background: rgba(201,168,76,0.24);
+}
+.about-sign-vig {
+  display: inline-flex; align-items: center; gap: clamp(8px, 1vw, 14px);
+  white-space: nowrap;
+}
+.about-sign-vig-label { color: rgba(201,168,76,0.44); letter-spacing: 0.34em; }
+.about-sign-vig-link {
+  display: inline-flex; align-items: center; line-height: 0;
+  opacity: 0.72; transition: opacity 0.3s ease, transform 0.32s ease, filter 0.3s ease;
+}
+.about-sign-vig-link:hover, .about-sign-vig-link:focus-visible {
+  opacity: 1; transform: scale(1.02); filter: brightness(1.08); outline: none;
+}
+.about-sign-vig-link:focus-visible { outline: 1px solid rgba(201,168,76,0.5); outline-offset: 3px; }
+/* Emblem: used exactly as supplied (no recolour/crop/glow/shadow); sized small,
+   a touch taller than the text for legibility, proportions preserved. */
+.about-sign-vig-emblem {
+  display: block; width: auto; height: clamp(16px, 1.8vw, 22px);
+}
 
 /* ── Cinematic reveal (keyed on the fixed-view router) ─────────── */
 .about-line {
@@ -918,6 +947,17 @@ body[data-view="television"] #hero-section {
   .about-final { font-size: clamp(23px, 6.4vw, 36px); }
   .hero-br-a { display: inline; }   /* mobile: break after "not" */
   .hero-br-b { display: none; }     /* mobile: keep "here to fit in." together */
+  /* Tighten the corporate signature so the full one-line lockup keeps a
+     comfortable margin on tablet. */
+  .about-sign { gap: clamp(10px, 1.6vw, 18px); letter-spacing: 0.24em; }
+  .about-sign-vig-label { letter-spacing: 0.2em; }
+}
+/* Very narrow phones: the full one-line signature can't fit legibly, so
+   stack it into two centred rows (studio identifier over the VIG mark) and
+   drop the vertical rule — graceful, never crushed. */
+@media (max-width: 600px) {
+  .about-sign { flex-direction: column; gap: clamp(10px, 2.6vw, 15px); }
+  .about-sign-rule { display: none; }
 }
 @media (max-width: 820px) and (max-height: 720px) {
   /* Very short viewports: allow the card to scroll INTERNALLY (never the page). */
