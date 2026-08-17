@@ -710,6 +710,173 @@ body[data-view="television"] #hero-section {
     transition: opacity 0.01s linear, visibility 0s;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   ABOUT — CINEMATIC STUDIO MANIFESTO
+   A near-black stage with the official KVF lion embossed into the dark
+   as an enormous, extremely faint imprint (screen blend + radial mask →
+   it emerges from shadow, no box/border), an editorial typographic
+   column, and a restrained title-sequence reveal. Fixed view — the
+   composition lives in the viewport; nothing here scrolls the page and
+   no audio is introduced. Reveal + lion motion are keyed on the router's
+   .is-view-active so they replay on entry and reset cleanly on exit.
+   ═══════════════════════════════════════════════════════════════ */
+.about-view {
+  display: block;
+  background:
+    radial-gradient(128% 104% at 70% 44%, #0c0b08 0%, #050504 52%, #000000 100%);
+}
+
+/* Enormous faint lion imprint — the existing official KVF artwork,
+   pressed into the black: desaturated + warm, screen-blended so the
+   asset's own dark ground vanishes and only the lion ghosts through, and
+   radially masked so every edge dissolves into darkness (no visible
+   image border). It is felt before it is noticed. */
+.about-lion {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background-image: url("./assets/kvf-logo-4k.png");
+  background-repeat: no-repeat;
+  background-position: 88% 30%;
+  background-size: clamp(680px, 80vw, 1560px) auto;
+  filter: grayscale(0.42) brightness(0.9) contrast(1.02) sepia(0.3) hue-rotate(-6deg);
+  mix-blend-mode: screen;
+  opacity: 0;
+  /* Focus the imprint on the lion face/wings (upper-right) and let the lower
+     portion — including the asset's own KINGDOM VISION FILMS wordmark — fall
+     away into darkness so it never competes with the typographic column. */
+  -webkit-mask-image: radial-gradient(52% 46% at 84% 33%, #000 0%, rgba(0,0,0,0.5) 46%, transparent 72%);
+          mask-image: radial-gradient(52% 46% at 84% 33%, #000 0%, rgba(0,0,0,0.5) 46%, transparent 72%);
+}
+#about.is-view-active .about-lion {
+  animation: aboutLionIn 2.4s ease-out forwards,
+             aboutLionBreathe 19s ease-in-out 2.4s infinite;
+}
+@keyframes aboutLionIn      { from { opacity: 0; }      to { opacity: 0.15; } }
+@keyframes aboutLionBreathe { 0%, 100% { opacity: 0.125; } 50% { opacity: 0.17; } }
+
+/* Extremely subtle light drift across the darkness — imperceptible on
+   purpose (no particles, no smoke, no zoom). */
+.about-atmos {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(38% 40% at 50% 46%, rgba(201,168,76,0.055) 0%, transparent 70%);
+  background-repeat: no-repeat;
+  background-size: 150% 150%;
+  background-position: 46% 50%;
+  opacity: 0;
+}
+/* Drift the light via background-position (element stays inset:0, so it can
+   never extend the scroll height) — imperceptibly slow, no particles/zoom. */
+#about.is-view-active .about-atmos { animation: aboutAtmosDrift 34s ease-in-out 1.2s infinite; }
+@keyframes aboutAtmosDrift {
+  0%, 100% { opacity: 0.5;  background-position: 42% 52%; }
+  50%      { opacity: 0.95; background-position: 56% 44%; }
+}
+
+.about-stage {
+  position: relative; z-index: 2;
+  min-height: 100%;
+  display: flex; align-items: center;
+  padding: clamp(18px, 3vh, 58px) clamp(28px, 6vw, 112px);
+}
+.about-content { max-width: min(700px, 92vw); }
+
+/* ── Typographic hierarchy (established KVF system) ─────────────── */
+.about-eyebrow {
+  font-family: 'Montserrat', sans-serif;
+  font-size: clamp(9px, 0.9vw, 12px); font-weight: 300;
+  letter-spacing: 0.5em; text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: clamp(13px, 2.1vh, 28px);
+}
+.about-hero {
+  font-family: 'Cinzel', serif; font-weight: 700;
+  font-size: clamp(37px, 5.8vw, 96px);
+  line-height: 0.97; letter-spacing: 0.005em; text-transform: uppercase;
+  color: var(--gold-pale);
+  background: linear-gradient(178deg, #f7ecc4 0%, #e8c97a 44%, #b48a34 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 2px 46px rgba(201,168,76,0.09);
+}
+.about-secondary {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic; font-weight: 300;
+  font-size: clamp(18px, 2.35vw, 33px);
+  line-height: 1.22; letter-spacing: 0.008em;
+  color: #f0e7d4;
+  margin-top: clamp(14px, 2.3vh, 30px);
+}
+.about-body {
+  font-family: 'Montserrat', sans-serif; font-weight: 300;
+  font-size: clamp(12.5px, 1.02vw, 15px);
+  line-height: 1.68; letter-spacing: 0.01em;
+  color: rgba(240,231,212,0.68);
+  max-width: 47ch;
+  margin-top: clamp(14px, 2.2vh, 28px);
+}
+.about-manifesto {
+  display: flex; flex-direction: column; gap: clamp(1px, 0.35vh, 5px);
+  font-family: 'Cinzel', serif; font-weight: 400;
+  font-size: clamp(12.5px, 1.42vw, 19px);
+  letter-spacing: 0.3em; text-transform: uppercase;
+  color: var(--gold-light);
+  margin-top: clamp(15px, 2.4vh, 32px);
+}
+.about-final {
+  font-family: 'Cinzel', serif; font-weight: 700;
+  font-size: clamp(23px, 3.35vw, 54px);
+  line-height: 1.04; letter-spacing: 0.01em; text-transform: uppercase;
+  color: var(--gold-pale);
+  text-shadow: 0 2px 40px rgba(201,168,76,0.08);
+  margin-top: clamp(17px, 2.9vh, 42px);
+}
+.about-sign {
+  font-family: 'Montserrat', sans-serif; font-weight: 300;
+  font-size: clamp(8.5px, 0.85vw, 11px);
+  letter-spacing: 0.42em; text-transform: uppercase; line-height: 2;
+  color: rgba(201,168,76,0.55);
+  margin-top: clamp(15px, 2.5vh, 34px);
+}
+.about-sign span { color: rgba(201,168,76,0.3); }
+
+/* ── Cinematic title-sequence reveal (keyed on the fixed-view router) ─ */
+.about-line {
+  opacity: 0; transform: translateY(20px);
+  transition: opacity 1.1s ease, transform 1.15s cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: opacity, transform;
+}
+#about.is-view-active .about-line { opacity: 1; transform: none; }
+#about.is-view-active .about-eyebrow   { transition-delay: 0.20s; }
+#about.is-view-active .about-hero      { transition-delay: 0.55s; }
+#about.is-view-active .about-secondary { transition-delay: 1.25s; }
+#about.is-view-active .about-body      { transition-delay: 1.85s; }
+#about.is-view-active .about-manifesto { transition-delay: 2.40s; }
+#about.is-view-active .about-final     { transition-delay: 3.05s; }
+#about.is-view-active .about-sign      { transition-delay: 3.65s; }
+/* keep the gradient fill on the hero through the fade */
+.about-hero.about-line { will-change: opacity, transform; }
+
+@media (max-width: 640px) {
+  .about-stage { padding: 26px 24px; align-items: center; }
+  .about-body { max-width: 100%; }
+  /* Lion grows relative to the screen and sinks further into the edges; the
+     imprint focuses on the face/wings in the upper frame so the asset's own
+     wordmark falls away into darkness rather than sitting behind the copy. */
+  .about-lion {
+    background-position: 64% 20%;
+    background-size: clamp(500px, 142vw, 860px) auto;
+    -webkit-mask-image: radial-gradient(64% 40% at 60% 23%, #000 0%, rgba(0,0,0,0.46) 46%, transparent 70%);
+            mask-image: radial-gradient(64% 40% at 60% 23%, #000 0%, rgba(0,0,0,0.46) 46%, transparent 70%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-line { opacity: 1; transform: none; transition: none; }
+  .about-lion, .about-atmos { animation: none; }
+  #about.is-view-active .about-lion  { animation: none; opacity: 0.15; }
+  #about.is-view-active .about-atmos { animation: none; opacity: 0.6; }
+}
+
 .footer-line {
   width: 100%; height: 1px;
   background: linear-gradient(to right, transparent, rgba(201,168,76,0.14), transparent);
