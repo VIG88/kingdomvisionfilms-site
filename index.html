@@ -407,11 +407,10 @@
 
     <!-- Slide 04 — Wolves in Sheep's Clothing (active property; key art + motion banner from R2).
          Uses the shared project-experience architecture (auto-wired by initProject).
-         No approved public tagline / logline / synopsis / format / genre copy exists in the
-         repo yet, so the supplied key art (which carries the title) is the card visual, the
-         title is kept as screen-reader text, and the expanded experience shows only the one
-         non-fabricated metadata value (Status). See final report: WISC tagline, synopsis,
-         format, and genre are still needed. -->
+         The approved logline is shown in the expanded experience (#wisc-detail .slate-synopsis),
+         matching Mahogany Row / Love Fever / The Commandant's Own. The supplied key art carries
+         the title (kept as screen-reader text). Format and genre are not yet approved, so the
+         metadata shows only Status (see final report). -->
     <div class="dev-slide" data-project="wolves-in-sheeps-clothing"
          role="group" aria-roledescription="slide" aria-label="Slide 4 of 5: Wolves in Sheep's Clothing">
       <article class="slate dev-reveal" aria-labelledby="wisc-title">
@@ -459,7 +458,7 @@
 
           <div class="slate-lead">
             <!-- Title kept as screen-reader text (the supplied key art carries the branding).
-                 No visible tagline/synopsis is rendered — none is approved yet. -->
+                 The approved logline is shown in the expanded experience (#wisc-detail). -->
             <h3 id="wisc-title" class="slate-title sr-only">Wolves in Sheep's Clothing</h3>
             <button class="slate-explore" type="button" aria-expanded="false" aria-controls="wisc-detail">
               <span class="slate-explore-label">Explore Project</span>
@@ -471,6 +470,9 @@
         <div id="wisc-detail" class="slate-detail-wrap" role="region" aria-label="Wolves in Sheep's Clothing details">
           <div class="slate-detail">
             <div class="slate-detail-inner">
+              <div class="slate-synopsis">
+                <p>After uncovering a sinister conspiracy hidden within the world that made him powerful, a celebrated investment banking executive watches his perfect life collapse piece by piece, forcing him into a terrifying battle with an unseen enemy determined to discover what remains of his faith when everything else is gone.</p>
+              </div>
               <dl class="slate-meta">
                 <div class="meta-item"><dt>Status</dt><dd>In Development</dd></div>
               </dl>
