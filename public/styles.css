@@ -884,14 +884,43 @@ body[data-view="television"] #hero-section {
   display: inline-flex; align-items: center; gap: clamp(8px, 1vw, 14px);
   white-space: nowrap;
 }
-.about-sign-vig-label { color: rgba(201,168,76,0.44); letter-spacing: 0.34em; }
+/* Cinzel for the ownership credit — its inscriptional uppercase G reads
+   unmistakably as a G (the geometric sans made VIG's G ambiguous at this size).
+   A 4s cinematic illumination gently catches warm light, then settles back. */
+.about-sign-vig-label {
+  font-family: 'Cinzel', serif; font-weight: 400;
+  color: rgba(201,168,76,0.5); letter-spacing: 0.28em;
+  animation: vigLabelGlow 4s ease-in-out infinite;
+}
+@keyframes vigLabelGlow {
+  0%, 34%, 100% { color: rgba(201,168,76,0.5);  text-shadow: none; }
+  14%           { color: rgba(236,206,128,0.92); text-shadow: 0 0 5px rgba(201,168,76,0.14); }
+}
+/* The emblem catches the same light on the same 4s cycle via opacity: the gold
+   gains presence, then settles. The emblem's own black ground is seated on a
+   matching black patch (below), so fading its opacity never reveals a box. */
+@keyframes vigEmblemGlow {
+  0%, 34%, 100% { opacity: 0.72; }
+  14%           { opacity: 1; }
+}
+/* Seamless embedding without depending on the page's blend backdrop: the link
+   is an isolated group whose own background matches the card's near-black, and
+   the emblem SCREEN-blends against that local background. Screen turns the PNG's
+   black ground into the exact card tone (invisible) while the gold shows; the
+   link box is card-coloured too, so no rectangle, edge, border, or halo is
+   perceptible — at rest or at the brightest point of the illumination. */
 .about-sign-vig-link {
+  position: relative; isolation: isolate;
   display: inline-flex; align-items: center; line-height: 0;
-  opacity: 0.72; transition: opacity 0.3s ease, transform 0.32s ease, filter 0.3s ease;
+  padding: 2px 3px;
+  background: #060504;             /* matches the card's near-black footer tone */
+  transition: transform 0.32s ease;
 }
 .about-sign-vig-link:hover, .about-sign-vig-link:focus-visible {
-  opacity: 1; transform: scale(1.02); filter: brightness(1.08); outline: none;
+  transform: scale(1.02); outline: none;
 }
+.about-sign-vig-link:hover .about-sign-vig-emblem,
+.about-sign-vig-link:focus-visible .about-sign-vig-emblem { animation-play-state: paused; opacity: 1; }
 .about-sign-vig-link:focus-visible { outline: 1px solid rgba(201,168,76,0.5); outline-offset: 3px; }
 /* Emblem: used exactly as supplied (no recolour/crop/glow/shadow); sized small,
    a touch taller than the text for legibility, proportions preserved. The
@@ -900,7 +929,10 @@ body[data-view="television"] #hero-section {
    gold mark remains. */
 .about-sign-vig-emblem {
   display: block; width: auto; height: clamp(16px, 1.8vw, 22px);
-  mix-blend-mode: screen;
+  mix-blend-mode: screen;   /* against the link's card-toned bg → black ground vanishes */
+  opacity: 0.72;
+  transition: opacity 0.3s ease;
+  animation: vigEmblemGlow 4s ease-in-out infinite;
 }
 
 /* ── Cinematic reveal (keyed on the fixed-view router) ─────────── */
@@ -973,6 +1005,10 @@ body[data-view="television"] #hero-section {
   .about-line, .about-card { opacity: 1; transform: none; transition: none; }
   .about-atmos { animation: none; opacity: 0.6; }
   #about.is-view-active .about-lion { animation: none; opacity: 0.05; }
+  /* Hold the VIG signature at its premium gold baseline — no recurring
+     illumination — while the emblem stays fully clickable. */
+  .about-sign-vig-label { animation: none; color: rgba(201,168,76,0.5); }
+  .about-sign-vig-emblem { animation: none; opacity: 0.8; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
