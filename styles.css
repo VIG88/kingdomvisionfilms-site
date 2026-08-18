@@ -885,9 +885,19 @@ body[data-view="television"] #hero-section {
   flex: 0 0 auto; width: 1px; height: clamp(11px, 1.3vw, 16px);
   background: rgba(201,168,76,0.24);
 }
+/* Unified VIG link: ONE anchor wrapping "A VIG COMPANY" + the emblem, so either
+   opens VIG Holdings. It is an isolated group whose own background matches the
+   card's near-black — the emblem SCREEN-blends against that local background so
+   its black ground vanishes (no box), and the card-toned box (plus padding) is
+   itself invisible, giving a generous tap target with no visible link styling.
+   KINGDOM VISION FILMS · LOS ANGELES and the divider stay outside this anchor. */
 .about-sign-vig {
+  position: relative; isolation: isolate;
   display: inline-flex; align-items: center; gap: clamp(8px, 1vw, 14px);
   white-space: nowrap;
+  padding: 8px 4px;                /* card-toned, invisible — enlarges the hit area */
+  background: #060504;             /* matches the card's near-black footer tone */
+  text-decoration: none; color: inherit;
 }
 /* Cinzel for the ownership credit — its inscriptional uppercase G reads
    unmistakably as a G (the geometric sans made VIG's G ambiguous at this size).
@@ -908,28 +918,15 @@ body[data-view="television"] #hero-section {
   0%, 34%, 100% { opacity: 0.72; }
   14%           { opacity: 1; }
 }
-/* Seamless embedding without depending on the page's blend backdrop: the link
-   is an isolated group whose own background matches the card's near-black, and
-   the emblem SCREEN-blends against that local background. Screen turns the PNG's
-   black ground into the exact card tone (invisible) while the gold shows; the
-   link box is card-coloured too, so no rectangle, edge, border, or halo is
-   perceptible — at rest or at the brightest point of the illumination. */
-.about-sign-vig-link {
-  position: relative; isolation: isolate;
-  display: inline-flex; align-items: center; line-height: 0;
-  /* Extra vertical padding enlarges the tap/click target (card-toned, so
-     invisible) without widening the one-line lockup or overlapping footer text;
-     the visible emblem size is unchanged. */
-  padding: 8px 4px;
-  background: #060504;             /* matches the card's near-black footer tone */
-  transition: transform 0.32s ease;
-}
-.about-sign-vig-link:hover, .about-sign-vig-link:focus-visible {
-  transform: scale(1.02); outline: none;
-}
-.about-sign-vig-link:hover .about-sign-vig-emblem,
-.about-sign-vig-link:focus-visible .about-sign-vig-emblem { animation-play-state: paused; opacity: 1; }
-.about-sign-vig-link:focus-visible { outline: 1px solid rgba(201,168,76,0.5); outline-offset: 3px; }
+/* Unified hover/focus: the whole VIG signature subtly brightens together — the
+   label rises to its illuminated gold and the emblem to full presence (both
+   animations paused so the state holds). Restrained, no glow/scale/underline. */
+.about-sign-vig:hover, .about-sign-vig:focus-visible { outline: none; }
+.about-sign-vig:hover .about-sign-vig-label,
+.about-sign-vig:focus-visible .about-sign-vig-label { animation-play-state: paused; color: rgba(238,208,132,0.96); }
+.about-sign-vig:hover .about-sign-vig-emblem,
+.about-sign-vig:focus-visible .about-sign-vig-emblem { animation-play-state: paused; opacity: 1; }
+.about-sign-vig:focus-visible { outline: 1px solid rgba(201,168,76,0.5); outline-offset: 3px; }
 /* Emblem: used exactly as supplied (no recolour/crop/glow/shadow); sized small,
    a touch taller than the text for legibility, proportions preserved. The
    supplied asset has a black background — screen-blending it drops that black
