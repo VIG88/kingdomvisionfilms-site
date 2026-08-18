@@ -1055,12 +1055,15 @@ body[data-view="television"] #hero-section {
    fully readable and interactive. */
 .contact-lion {
   position: absolute; z-index: 1; pointer-events: none;
-  top: 48%; left: 48%; transform: translate(-50%, -50%);
-  /* Large cinematic presence filling the central corridor: the mane spans most
-     of the viewport height and dissolves to black, the eyes read upper-middle
-     and the muzzle sits near centre. Height-driven so the scale stays consistent
-     regardless of window width. */
-  width: min(84vh, 88vw); height: min(84vh, 88vw);
+  /* Centred on the ACTUAL corridor between the two columns, not the viewport:
+     at ~1280–1440 the midpoint between the copy's right edge and the form's
+     left edge measures ~44% of the width (a min-width override tightens it to
+     ~41.5% on 1920, where the empty margins widen). Vertically the muzzle sits
+     near page centre, eyes upper-centre. */
+  top: 49%; left: 44%; transform: translate(-50%, -50%);
+  /* Large, commanding cinematic presence: the mane spans most of the viewport
+     height and dissolves to black. Height-driven so scale is width-independent. */
+  width: min(90vh, 94vw); height: min(90vh, 94vw);
   opacity: 0;                                   /* fades in with the view */
   transition: opacity 1.6s ease 0.5s;
   /* Feather the outer extent so the mane fades progressively into black with no
@@ -1071,6 +1074,12 @@ body[data-view="television"] #hero-section {
             #000 0%, #000 38%, rgba(0,0,0,0.55) 64%, rgba(0,0,0,0.18) 82%, transparent 94%);
 }
 #contact.is-view-active .contact-lion { opacity: 1; }
+/* On wide desktops the left copy occupies proportionally less width, so the
+   corridor midpoint shifts left (~41.5% at 1920). Nudge the lion to stay
+   centred between the two columns rather than drifting toward the form. */
+@media (min-width: 1600px) {
+  .contact-lion { left: 41.5%; }
+}
 .contact-lion-img {
   position: absolute; inset: 0;
   background-image: url("https://media.kingdomvisionfilms.com/GEOMETRICAL%20LION_KVF.jpg");
