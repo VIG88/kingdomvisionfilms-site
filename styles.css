@@ -1055,15 +1055,20 @@ body[data-view="television"] #hero-section {
    fully readable and interactive. */
 .contact-lion {
   position: absolute; z-index: 1; pointer-events: none;
-  top: 52%; left: 46%; transform: translate(-50%, -50%);
-  width: min(52vh, 60vw); height: min(52vh, 60vw);
+  top: 48%; left: 48%; transform: translate(-50%, -50%);
+  /* Large cinematic presence filling the central corridor: the mane spans most
+     of the viewport height and dissolves to black, the eyes read upper-middle
+     and the muzzle sits near centre. Height-driven so the scale stays consistent
+     regardless of window width. */
+  width: min(84vh, 88vw); height: min(84vh, 88vw);
   opacity: 0;                                   /* fades in with the view */
   transition: opacity 1.6s ease 0.5s;
-  /* Feather the outer extent so nothing reaches a hard edge. */
-  -webkit-mask-image: radial-gradient(closest-side ellipse at 50% 48%,
-            #000 0%, #000 42%, rgba(0,0,0,0.55) 66%, transparent 84%);
-          mask-image: radial-gradient(closest-side ellipse at 50% 48%,
-            #000 0%, #000 42%, rgba(0,0,0,0.55) 66%, transparent 84%);
+  /* Feather the outer extent so the mane fades progressively into black with no
+     hard frame edge — a longer, smoother falloff for the larger dimensions. */
+  -webkit-mask-image: radial-gradient(closest-side ellipse at 50% 47%,
+            #000 0%, #000 38%, rgba(0,0,0,0.55) 64%, rgba(0,0,0,0.18) 82%, transparent 94%);
+          mask-image: radial-gradient(closest-side ellipse at 50% 47%,
+            #000 0%, #000 38%, rgba(0,0,0,0.55) 64%, rgba(0,0,0,0.18) 82%, transparent 94%);
 }
 #contact.is-view-active .contact-lion { opacity: 1; }
 .contact-lion-img {
@@ -1290,14 +1295,14 @@ body[data-view="television"] #hero-section {
    depth behind the form rather than a face parked on any single field. The extra
    faintness keeps every label and field fully readable. */
 @media (max-width: 900px) {
-  .contact-lion { left: 50%; top: 57%; width: min(92vw, 60vh); height: min(92vw, 60vh); }
+  .contact-lion { left: 50%; top: 52%; width: min(88vh, 122vw); height: min(88vh, 122vw); }
   #contact.is-view-active .contact-lion { opacity: 0.5; }
 }
 @media (max-width: 420px) {
   .contact-stage { padding: 46px 22px; }
   .inquiry-opt { letter-spacing: 0.2em; }
-  .contact-lion { top: 61%; width: min(104vw, 52vh); height: min(104vw, 52vh); }
-  #contact.is-view-active .contact-lion { opacity: 0.42; }
+  .contact-lion { top: 50%; width: min(74vh, 156vw); height: min(74vh, 156vw); }
+  #contact.is-view-active .contact-lion { opacity: 0.4; }
 }
 
 @media (prefers-reduced-motion: reduce) {
