@@ -1403,8 +1403,10 @@
     /* 3. Body state drives the HOME hero + footer visibility. */
     body.setAttribute('data-view', view);
 
-    /* 4. Reflect the active section in the navigation. */
-    setActiveNav(view === 'home' ? '' : view);
+    /* 4. Reflect the active section in the navigation. HOME participates in the
+          same active-nav styling now that it has its own item (href="#home"),
+          so pass the view straight through — exactly one link ever matches. */
+    setActiveNav(view);
 
     /* 5. IN DEVELOPMENT opens directly into the motion-banner experience on the
           flagship (Mahogany Row) — no key-art browsing, no EXPLORE gate. Cleanup
