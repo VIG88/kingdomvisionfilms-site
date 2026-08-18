@@ -683,6 +683,11 @@ body:not([data-view]) #site-footer {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
+  /* Sit above the inactive views. They share z-index:10 and paint in DOM order,
+     so a later inactive view (e.g. IN DEVELOPMENT, whose .slate-media-img stays
+     hit-testable) can otherwise overlay the active view and swallow clicks —
+     which was blocking the ABOUT card's VIG link. */
+  z-index: 11;
   transition: opacity 0.6s ease;
 }
 
@@ -912,7 +917,10 @@ body[data-view="television"] #hero-section {
 .about-sign-vig-link {
   position: relative; isolation: isolate;
   display: inline-flex; align-items: center; line-height: 0;
-  padding: 2px 3px;
+  /* Extra vertical padding enlarges the tap/click target (card-toned, so
+     invisible) without widening the one-line lockup or overlapping footer text;
+     the visible emblem size is unchanged. */
+  padding: 8px 4px;
   background: #060504;             /* matches the card's near-black footer tone */
   transition: transform 0.32s ease;
 }
