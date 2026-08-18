@@ -1042,6 +1042,50 @@ body[data-view="television"] #hero-section {
   50%      { opacity: 0.92; background-position: 50% 44%; }
 }
 
+/* ── Geometrical-lion imprint ─────────────────────────────────────
+   A cinematic atmospheric presence set into the negative space between the
+   statement (left) and the inquiry form (right). The source JPG has a solid
+   black ground; the inner layer SCREEN-blends it against the near-black CONTACT
+   stage, so black contributes nothing — no rectangle, edge, border, or tonal
+   patch appears at any intensity. A radial feather mask fades the outer extent
+   to nothing (no hard image frame), and a brightness/contrast filter keeps the
+   bright eyes/nose/muzzle from becoming white focal points, leaving the warm
+   gold geometry as the primary characteristic. Decorative only: z-index below
+   the stage (2) and pointer-events:none, so all copy and form controls stay
+   fully readable and interactive. */
+.contact-lion {
+  position: absolute; z-index: 1; pointer-events: none;
+  top: 52%; left: 46%; transform: translate(-50%, -50%);
+  width: min(52vh, 60vw); height: min(52vh, 60vw);
+  opacity: 0;                                   /* fades in with the view */
+  transition: opacity 1.6s ease 0.5s;
+  /* Feather the outer extent so nothing reaches a hard edge. */
+  -webkit-mask-image: radial-gradient(closest-side ellipse at 50% 48%,
+            #000 0%, #000 42%, rgba(0,0,0,0.55) 66%, transparent 84%);
+          mask-image: radial-gradient(closest-side ellipse at 50% 48%,
+            #000 0%, #000 42%, rgba(0,0,0,0.55) 66%, transparent 84%);
+}
+#contact.is-view-active .contact-lion { opacity: 1; }
+.contact-lion-img {
+  position: absolute; inset: 0;
+  background-image: url("https://media.kingdomvisionfilms.com/GEOMETRICAL%20LION_KVF.jpg");
+  background-repeat: no-repeat; background-position: center;
+  background-size: contain;
+  mix-blend-mode: screen;                       /* black ground → invisible */
+  /* Subdue the artwork's brightest facial areas so the eyes/nose never blow
+     out to white; keep it warm. Base restraint (7–12% feel) comes from the low
+     lightness this leaves after screen-blending thin lines on near-black. */
+  filter: brightness(0.34) contrast(1.02) saturate(1.08);
+}
+/* Extremely subtle, slow illumination — the geometry emerges a touch more from
+   the darkness, then recedes. Opacity/brightness only; NO transform, movement,
+   zoom, or scale. Screen-blend keeps the boundary invisible at every step. */
+#contact.is-view-active .contact-lion-img { animation: contactLionGlow 9s ease-in-out 1.2s infinite; }
+@keyframes contactLionGlow {
+  0%, 100% { filter: brightness(0.30) contrast(1.02) saturate(1.06); }
+  50%      { filter: brightness(0.44) contrast(1.03) saturate(1.12); }
+}
+
 /* Faint aperture / film-frame corner brackets — thin gold linework. */
 .contact-frame { position: absolute; inset: clamp(16px, 2.4vw, 40px); z-index: 1; pointer-events: none; opacity: 0; transition: opacity 1.2s ease 0.2s; }
 #contact.is-view-active .contact-frame { opacity: 1; }
@@ -1241,15 +1285,31 @@ body[data-view="television"] #hero-section {
   .contact-identifier { order: 5; margin-top: clamp(18px, 3vh, 32px); }
 }
 @media (max-width: 900px) { .contact-stage { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; } }
+/* Stacked layout has no column gap to sit in, so the lion recomposes into a
+   large, centred, extremely faint cropped imprint biased slightly low — ambient
+   depth behind the form rather than a face parked on any single field. The extra
+   faintness keeps every label and field fully readable. */
+@media (max-width: 900px) {
+  .contact-lion { left: 50%; top: 57%; width: min(92vw, 60vh); height: min(92vw, 60vh); }
+  #contact.is-view-active .contact-lion { opacity: 0.5; }
+}
 @media (max-width: 420px) {
   .contact-stage { padding: 46px 22px; }
   .inquiry-opt { letter-spacing: 0.2em; }
+  .contact-lion { top: 61%; width: min(104vw, 52vh); height: min(104vw, 52vh); }
+  #contact.is-view-active .contact-lion { opacity: 0.42; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .c-reveal { opacity: 1; transform: none; transition: none; }
   .contact-atmos, #contact.is-view-active .contact-atmos { animation: none; opacity: 0.6; }
   .contact-frame { transition: none; }
+  /* Keep the static lion imprint; stop its illumination cycle. */
+  .contact-lion { transition: none; }
+  .contact-lion-img,
+  #contact.is-view-active .contact-lion-img {
+    animation: none; filter: brightness(0.36) contrast(1.02) saturate(1.08);
+  }
 }
 
 .footer-line {
