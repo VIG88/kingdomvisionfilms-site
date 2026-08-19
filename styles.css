@@ -1066,14 +1066,20 @@ body[data-view="television"] #hero-section {
   width: min(90vh, 94vw); height: min(90vh, 94vw);
   opacity: 0;                                   /* fades in with the view */
   transition: opacity 1.6s ease 0.5s;
-  /* Feather the outer extent so the mane fades progressively into black with no
-     hard frame edge — a longer, smoother falloff for the larger dimensions. */
-  -webkit-mask-image: radial-gradient(closest-side ellipse at 50% 47%,
-            #000 0%, #000 38%, rgba(0,0,0,0.55) 64%, rgba(0,0,0,0.18) 82%, transparent 94%);
-          mask-image: radial-gradient(closest-side ellipse at 50% 47%,
-            #000 0%, #000 38%, rgba(0,0,0,0.55) 64%, rgba(0,0,0,0.18) 82%, transparent 94%);
+  /* Selective depth: the face core stays the most perceptible while the outer
+     mane attenuates aggressively into black, so the lion reads as something
+     emerging from darkness rather than illuminated artwork. Soft throughout —
+     no hard mask edge, no vignette ring, no image boundary. */
+  -webkit-mask-image: radial-gradient(closest-side ellipse at 50% 46%,
+            #000 0%, #000 22%, rgba(0,0,0,0.5) 46%, rgba(0,0,0,0.14) 68%, transparent 85%);
+          mask-image: radial-gradient(closest-side ellipse at 50% 46%,
+            #000 0%, #000 22%, rgba(0,0,0,0.5) 46%, rgba(0,0,0,0.14) 68%, transparent 85%);
 }
-#contact.is-view-active .contact-lion { opacity: 1; }
+/* Deliberately low — the lion sits buried in the CONTACT darkness. A brighter
+   per-pixel filter paired with this low layer opacity keeps selective facial
+   detail (eyes, nose bridge, muzzle, whiskers) faintly readable while the whole
+   presence stays dark and atmospheric (≈40% of the prior intensity). */
+#contact.is-view-active .contact-lion { opacity: 0.25; }
 /* On wide desktops the left copy occupies proportionally less width, so the
    corridor midpoint shifts left (~41.5% at 1920). Nudge the lion to stay
    centred between the two columns rather than drifting toward the form. */
@@ -1086,18 +1092,20 @@ body[data-view="television"] #hero-section {
   background-repeat: no-repeat; background-position: center;
   background-size: contain;
   mix-blend-mode: screen;                       /* black ground → invisible */
-  /* Subdue the artwork's brightest facial areas so the eyes/nose never blow
-     out to white; keep it warm. Base restraint (7–12% feel) comes from the low
-     lightness this leaves after screen-blending thin lines on near-black. */
-  filter: brightness(0.34) contrast(1.02) saturate(1.08);
+  /* Per-pixel brightness kept moderate (detail survives) but the overall
+     presence is darkened by the low LAYER opacity above and desaturated a touch
+     so the warm gold reads muted rather than illuminated. Slightly raised
+     contrast preserves the facial geometry against the black. */
+  filter: brightness(0.55) contrast(1.12) saturate(0.82);
 }
-/* Extremely subtle, slow illumination — the geometry emerges a touch more from
-   the darkness, then recedes. Opacity/brightness only; NO transform, movement,
-   zoom, or scale. Screen-blend keeps the boundary invisible at every step. */
+/* Extremely subtle, slow illumination — a little more of the geometry emerges
+   from the darkness, then recedes. Opacity/brightness only; NO transform,
+   movement, zoom, or scale. Even the brightest point of the cycle stays dark
+   (layer opacity 0.25), so the lion never visibly pulses or glows. */
 #contact.is-view-active .contact-lion-img { animation: contactLionGlow 9s ease-in-out 1.2s infinite; }
 @keyframes contactLionGlow {
-  0%, 100% { filter: brightness(0.30) contrast(1.02) saturate(1.06); }
-  50%      { filter: brightness(0.44) contrast(1.03) saturate(1.12); }
+  0%, 100% { filter: brightness(0.50) contrast(1.12) saturate(0.80); }
+  50%      { filter: brightness(0.64) contrast(1.13) saturate(0.84); }
 }
 
 /* Faint aperture / film-frame corner brackets — thin gold linework. */
@@ -1305,13 +1313,13 @@ body[data-view="television"] #hero-section {
    faintness keeps every label and field fully readable. */
 @media (max-width: 900px) {
   .contact-lion { left: 50%; top: 52%; width: min(88vh, 122vw); height: min(88vh, 122vw); }
-  #contact.is-view-active .contact-lion { opacity: 0.5; }
+  #contact.is-view-active .contact-lion { opacity: 0.22; }
 }
 @media (max-width: 420px) {
   .contact-stage { padding: 46px 22px; }
   .inquiry-opt { letter-spacing: 0.2em; }
   .contact-lion { top: 50%; width: min(74vh, 156vw); height: min(74vh, 156vw); }
-  #contact.is-view-active .contact-lion { opacity: 0.4; }
+  #contact.is-view-active .contact-lion { opacity: 0.18; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1322,7 +1330,7 @@ body[data-view="television"] #hero-section {
   .contact-lion { transition: none; }
   .contact-lion-img,
   #contact.is-view-active .contact-lion-img {
-    animation: none; filter: brightness(0.36) contrast(1.02) saturate(1.08);
+    animation: none; filter: brightness(0.55) contrast(1.12) saturate(0.82);
   }
 }
 
