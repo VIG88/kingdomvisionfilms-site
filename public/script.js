@@ -71,9 +71,25 @@
   var heroTagline  = $('hero-tagline');
 
   /* ── Timing constants ───────────────────────────────────────── */
-  var INTRO_FADE_SEC   = 9.3;     /* start crossfade at this intro time   */
-  var INTRO_XFADE_MS   = 1800;    /* 1.8 s crossfade as required          */
+  /* The cinematic dissolve is driven by the intro's ACTUAL runtime duration
+     (read from the media element), NOT a hard-coded clip length: the crossfade
+     begins FADE_LEAD_SEC before the true end so it completes right as the intro
+     finishes — never a play-to-end freeze/jump. INTRO_FADE_SEC is only a
+     fallback used if the media duration is not yet known. Reduced motion
+     shortens the whole dissolve substantially. */
+  var reduceMotion     = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var INTRO_FADE_SEC   = 9.3;                          /* fallback trigger only */
+  var INTRO_XFADE_MS   = reduceMotion ? 700 : 1800;    /* fade + cleanup window */
+  var FADE_LEAD_SEC    = reduceMotion ? 0.6 : 1.8;     /* begin dissolve this early */
+  var AUDIO_FADE_MS    = reduceMotion ? 380 : 1500;    /* intro-audio ramp ≈ visual fade */
   var STALL_TIMEOUT_MS = 3000;    /* 3 s hard timeout → skip intro        */
+
+  /* Reduced motion: shorten the visual dissolve to match the shortened JS timing
+     so the display:none cleanup never truncates a longer CSS transition. */
+  if (reduceMotion) {
+    if (introScreen) introScreen.style.transitionDuration = '0.38s';
+    if (bgVideoWrap) bgVideoWrap.style.transitionDuration = '0.38s';
+  }
   var BG_CANPLAY_MS    = 20000;   /* 20 s before bg fallback fires        */
   /* NOTE: loop-swap timing is derived at runtime from the actual media
      duration (activeVid.duration) — never a hard-coded constant — so the
@@ -475,7 +491,14 @@
     if (transitionStarted) return;
     videoStarted = true;
     clearTimeout(stallTimer);
-    if (introVideo.currentTime >= INTRO_FADE_SEC) {
+    /* Start the dissolve a fixed lead BEFORE the intro's true end, derived from
+       the media's real duration — so it completes as the intro finishes for a
+       clip of ANY length (no play-to-end freeze). Falls back to INTRO_FADE_SEC
+       only while the duration is still unknown. The `ended` handler below is the
+       final safety net. */
+    var dur = introVideo.duration;
+    var trigger = (isFinite(dur) && dur > (FADE_LEAD_SEC + 0.3)) ? (dur - FADE_LEAD_SEC) : INTRO_FADE_SEC;
+    if (introVideo.currentTime >= trigger) {
       beginCrossfade();
     }
   });
@@ -574,8 +597,12 @@
   function executeCrossfade() {
     kvfLog('Crossfade executing — bg video starting');
 
-    /* Apply current mute state */
-    applyMuteState(isMuted);
+    /* Keep the background SILENT during the visual dissolve — the intro's
+       fading audio is the only source through the handoff. The real mute state
+       (which may make the bg audible per the sound preference) is applied only
+       AFTER the intro has gone silent, inside doFade(). */
+    try { bgVideoA.muted = true; bgVideoA.volume = 0; } catch (e) {}
+    try { bgVideoB.muted = true; bgVideoB.volume = 0; } catch (e) {}
 
     /* Seek both to t=0 for a clean start */
     try { bgVideoA.currentTime = 0; } catch (e) {}
@@ -599,12 +626,19 @@
       /* Start B playing silently in sync */
       bgVideoB.play().catch(function () {});
 
-      /* Fire the opacity transitions simultaneously */
+      /* Fire the opacity transitions simultaneously — and fade the intro audio
+         on the SAME beat, so the picture and sound dissolve together. */
+      fadeOutIntroAudio(AUDIO_FADE_MS);
       introScreen.classList.add('fade-out');       /* intro: 1 → 0 */
       bgVideoWrap.classList.add('visible');         /* bg wrap: 0 → 1 */
 
       showSoundToggle();
       startLoopEngine();
+
+      /* Hand real audio to the background only once the intro audio has faded to
+         silence — never two audible sources at once. (applyMuteState leaves the
+         now-transitioned intro untouched and sets the bg per the sound state.) */
+      setTimeout(function () { applyMuteState(isMuted); }, AUDIO_FADE_MS);
 
       /* Clean up intro after transition */
       setTimeout(function () {
@@ -626,6 +660,7 @@
       crossfadeDone = true;
       kvfLog('BG video did not start in time — revealing homepage over static fallback');
       applyBgFallback();                             /* static KVF image  */
+      fadeOutIntroAudio(AUDIO_FADE_MS);              /* audio fades with picture */
       introScreen.classList.add('fade-out');         /* intro: 1 → 0      */
       bgVideoWrap.classList.add('visible');          /* bg wrap: 0 → 1    */
       showSoundToggle();
@@ -647,20 +682,32 @@
     }
   }
 
+  /* Smoothly ramp the intro's embedded audio to silence over the dissolve so it
+     never cuts abruptly. Only ramps if it is actually audible; always ends muted.
+     Runs on rAF, started at the moment the VISUAL fade begins so the two stay in
+     sync. */
+  function fadeOutIntroAudio(ms) {
+    var startVol = introVideo.muted ? 0 : (typeof introVideo.volume === 'number' ? introVideo.volume : 0);
+    if (startVol <= 0.001) { try { introVideo.muted = true; introVideo.volume = 0; } catch (e) {} return; }
+    var clock = (window.performance && performance.now) ? function () { return performance.now(); } : function () { return Date.now(); };
+    var t0 = clock();
+    (function step() {
+      var p = Math.min(1, (clock() - t0) / ms);
+      try { introVideo.volume = Math.max(0, startVol * (1 - p)); } catch (e) {}
+      if (p < 1) { requestAnimationFrame(step); }
+      else { try { introVideo.muted = true; introVideo.volume = 0; } catch (e) {} }
+    })();
+  }
+
   function beginCrossfade() {
     if (transitionStarted) return;
     transitionStarted = true;
     clearTimeout(stallTimer);
     kvfLog('beginCrossfade triggered at t=' + (introVideo.currentTime || 0).toFixed(2) + 's');
 
-    /* Stop the intro's embedded audio the instant it starts transitioning out,
-       so it can't overlap the homepage background video — a single audio source
-       through the handoff. (applyMuteState now leaves the intro alone once
-       transitionStarted, so this stays muted; the intro is paused shortly after.) */
-    try { introVideo.muted = true; introVideo.volume = 0; } catch (e) {}
-
     if (bgFallbackApplied) {
-      /* BG already in fallback state — just fade intro out */
+      /* BG already in fallback state — fade intro out (audio + visual together) */
+      fadeOutIntroAudio(AUDIO_FADE_MS);
       introScreen.classList.add('fade-out');
       bgVideoWrap.classList.add('visible');
       showSoundToggle();
@@ -697,7 +744,9 @@
     transitionStarted = true;
     clearTimeout(stallTimer);
     kvfLog('skipIntro — jumping to homepage');
-    try { introVideo.pause(); } catch (e) {}
+    /* Skip paths are error/stall recoveries — silence the intro immediately so
+       no hidden audio survives the jump. */
+    try { introVideo.pause(); introVideo.muted = true; introVideo.volume = 0; } catch (e) {}
 
     if (bgFallbackApplied) {
       introScreen.classList.add('fade-out');
